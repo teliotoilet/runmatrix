@@ -1,0 +1,89 @@
+#!/bin/bash
+#PBS -A wec_ind
+#PBS -N tank2D
+#PBS -l nodes=1:ppn=8
+#PBS -l feature=24core
+#####PBS -q debug
+#####PBS -q short
+#PBS -j oe
+#PBS -m abe
+#PBS -M eliot.quon@nrel.gov
+# 
+# This is the superscript - all #PBS lines will be copied into the header of
+#   the job scripts in each case subdirectory
+#
+# - fixed case parameters
+. $PBS_O_WORKDIR/params.sh
+#
+# - commands to be used
+setup=$PBS_O_WORKDIR/setup.sh
+liccmd='/nopt/nrel/admin/bin/lmutil lmstat -c 1999@wind-lic.nrel.gov'
+$liccmd -a
+#
+# - environment variables for this current sweep
+nodes=$PBS_NUM_NODES
+cores=$PBS_NUM_PPN
+nprocs=$(($nodes*$cores))
+
+#------------------------------------------------------------------------------
+# Execution starts here
+
+#export PBS_O_WORKDIR=`pwd` #FOR TESTING ONLY!
+
+casedir=${casefile%.*}
+mkdir -p $casedir
+
+#
+# process all cases
+#
+echo "$PBS_O_WORKDIR started at `date`" >> $HOME/joblog
+while read -r name T H nL nH cfl; do
+
+    cd $PBS_O_WORKDIR/$casedir
+
+    #
+    # setup new case if the subdirectory doesn't exist
+    #
+    echo '---'
+    echo "$name : T=$T  H=$H  nL=$nL  nH=$nH  CFL=$cfl"
+    if [ ! -d "$name" ]; then
+        echo "Setting up new case $name"
+        $setup $T $H $nL $nH $cfl $name
+    else
+        if [ -f "$name/DONE" ]; then 
+            echo " - done"
+            continue
+        fi
+
+        echo " - case directory exists"
+        if [ ! -f "$name/RUNNING" ]; then
+            if [ -s "$name/$name.log" ]; then
+                if [ -z "`grep 'Simulation saved' $name/$name.log`" ] || [ -n "`grep 'Terminated' $name/$name.log`" ]; then
+                    echo "WARNING: Possible problem with case setup"
+                    rm -v $name/$name.log # so we start over clean
+                    cp -v $templateDir/$startSim $name/$name.sim
+                else
+                    echo "  attempting restart"
+                fi
+            fi
+        fi
+    fi
+
+    #
+    # try to run job if we have enough procs
+    #
+    licStr=`$liccmd -f hpcdomains | grep "Users of hpcdomains"`
+    echo $licStr
+    navail=`echo $licStr | awk '{print $6 - $11}'`
+    while [ "$navail" -lt "$nprocs" ]; do
+        echo "-- only $navail out of $nprocs licenses available --"
+        sleep 15s
+        licStr=`$liccmd -f hpcdomains | grep "Users of hpcdomains"`
+        navail=`echo $licStr | awk '{print $6 - $11}'`
+    done
+    cd $name
+    sh job.pbs
+
+done < $PBS_O_WORKDIR/$casefile
+
+
