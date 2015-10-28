@@ -5,10 +5,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 postdata='post_summary.dat'
 
-coarse  = 'o'
-medium  = '^'
-fine    = 's'
-vfine   = '*'
+# general plot styles
+#coarse  = 'o'
+#medium  = '^'
+#fine    = 's'
+#vfine   = '*'
+#time0   = 'r'
+#time1   = 'g'
+#time2   = 'b'
+styles = ['^','s','o']
+varnames = dict()
+varnames['nL'] = 'cells per wavelength'
+varnames['nH'] = 'cells per waveheight'
+
+# pre-calculated values
+ss0 = { 'period':1.86, 'height':0.08, 'wavelength':5.41217080198, 'wavespeed':2.90976924838 }
+ss5 = { 'period':5.66, 'height':1.20, 'wavelength':33.5676693735, 'wavespeed':5.9306836349  }
 
 #===============================================================================
 # basic database
@@ -40,9 +52,25 @@ class runmatrix:
     def __init__(self):
         self.cases = []
         self.selected = []
+        self.params = dict()
+        self.excludedKeys = ['name','ncells','walltime']
 
     def add_case(self, name, **kwargs):
         self.cases.append( case(name, **kwargs) )
+        c = self.cases[-1]
+        for key in dir(c):
+            if key.startswith('__') \
+                    or key.endswith('err') \
+                    or key in self.excludedKeys: continue
+            value = getattr(c,key)
+            try:
+                if not value in self.params[key]:
+                    self.params[key].append(value)
+            except KeyError:
+                self.params[key] = [value]
+
+    def print_params(self):
+        for key in self.params: print key,':',self.params[key]
 
     def select(self, **kwargs):
         self.selected = range(len(self.cases))
@@ -51,7 +79,7 @@ class runmatrix:
             print 'Selecting',name,'=',value,'from',Ncases,'cases'
             newselection = []
             for icase in self.selected:
-                if eval('self.cases[icase].'+name) == value:
+                if getattr(self.cases[icase],name) == value:
                     newselection.append(icase)
             self.selected = newselection
         print 'result:'
@@ -63,7 +91,7 @@ class runmatrix:
         data = np.zeros((Nsel))
         for i in range(Nsel):
             icase = self.selected[i]
-            data[i] = eval('self.cases[icase].'+col)
+            data[i] = getattr(self.cases[icase],col)
         return data
 
 #===============================================================================
@@ -81,14 +109,14 @@ with open(casename+'.txt','r') as f:
 name = [ '' for i in range(Ncases) ]
 T = np.zeros((Ncases))
 H = np.zeros((Ncases))
-nL = np.zeros((Ncases),dtype=np.int8)
-nH = np.zeros((Ncases),dtype=np.int8)
+nL = np.zeros((Ncases),dtype=np.int16)
+nH = np.zeros((Ncases),dtype=np.int16)
 cfl = np.zeros((Ncases))
 maxerr = np.zeros((Ncases))
 cumerr = np.zeros((Ncases))
 lamerr = np.zeros((Ncases))
 adjerr = np.zeros((Ncases))
-ncells = np.zeros((Ncases),dtype=np.int8)
+ncells = np.zeros((Ncases),dtype=np.int32)
 walltime = np.zeros((Ncases))
 
 # 
@@ -136,55 +164,91 @@ for i in range(Ncases):
             maxerr=maxerr[i], cumerr=cumerr[i], \
             lamerr=lamerr[i], adjerr=adjerr[i], \
             ncells=ncells[i], walltime=walltime[i] )
+db.print_params()
 
 #===============================================================================
 #
 # make plots
 #
+def frexp10(x):# {{{
+    exp = int(np.log10(x))
+    return x / 10**exp, exp
+def calcLogRange(vals):
+    #print 'range of values:',vals
 
-# ERROR VS CELLS/WAVELENGTH
-fig, [[ax0, ax1], [ax2, ax3]] = plt.subplots(nrows=2, ncols=2, sharex=True)
-fig.subplots_adjust(bottom=0.175,left=0.1,top=0.875,right=0.95)
-fig.suptitle('Sea state 0: streamwise spacing error',fontsize=18)
-xvar = 'nL'
-xlabel = 'cells per wavelength'
-styles = [coarse,medium,fine]
-labels = ['ncells/H=10','ncells/H=20','ncells/H=30']
+    m,e = frexp10(np.min(vals))
+    #print 'xmin:',m,e
+    xmin = np.floor(m)-1
+    #print 'xmin:',xmin
+    if xmin==0: xmin = 9*10**(e-1)
+    else: xmin *= 10**e
+    #print 'xmin:',xmin
 
-yvar = 'maxerr'
-db.select(T=1.86,H=0.08,nH=10); ax0.loglog(db.column(xvar),db.column(yvar),styles[0],label=label[0])
-db.select(T=1.86,H=0.08,nH=20); ax0.loglog(db.column(xvar),db.column(yvar),styles[1],label=label[1])
-db.select(T=1.86,H=0.08,nH=30); ax0.loglog(db.column(xvar),db.column(yvar),styles[2],label=label[2])
-ax0.set_title('Maximum Error')
-ax0.set_ylabel('maximum L2-error norm')
+    m,e = frexp10(np.max(vals))
+    #print 'xmax:',m,e
+    xmax = np.ceil(m)+1
+    #print 'xmax:',xmax
+    if xmax>=10: xmax = 2*10**(e+1)
+    else: xmax *= 10**e
+    #print 'xmax:',xmax
 
-yvar = 'cumerr'
-db.select(T=1.86,H=0.08,nH=10); ax1.loglog(db.column(xvar),db.column(yvar),styles[0],label=label[0])
-db.select(T=1.86,H=0.08,nH=20); ax1.loglog(db.column(xvar),db.column(yvar),styles[1],label=label[1])
-db.select(T=1.86,H=0.08,nH=30); ax1.loglog(db.column(xvar),db.column(yvar),styles[2],label=label[2])
-ax1.set_title('Cumulative Error')
-ax1.set_ylabel('cumulative L2-error norm')
+    #print 'xrange',xmin,xmax
+    return (xmin,xmax)# }}}
 
-yvar = 'lamerr'
-db.select(T=1.86,H=0.08,nH=10); ax2.semilogx(db.column(xvar),np.abs(100*db.column(yvar)),styles[0],label=label[0])
-db.select(T=1.86,H=0.08,nH=20); ax2.semilogx(db.column(xvar),np.abs(100*db.column(yvar)),styles[1],label=label[1])
-db.select(T=1.86,H=0.08,nH=30); ax2.semilogx(db.column(xvar),np.abs(100*db.column(yvar)),styles[2],label=label[2])
-ax2.set_title('Wavelength Error')
-ax2.set_ylabel('wavelength error [%]')
+def errorPlot(title='',ss=None,xvar='nL',constvar='nH',constval=0,seriesvar='cfl'):
+    assert( constval in db.params[constvar] )
+    
+    # plot
+    fig, [[ax0, ax1], [ax2, ax3]] = plt.subplots(nrows=2, ncols=2, sharex=True)
+    fig.subplots_adjust(bottom=0.175,left=0.1,top=0.875,right=0.95)
+    series = db.params[seriesvar]
+    nseries = len(series)
+    for i in range(nseries):
+        # filter data
+        cols = {'T':ss['period'], 'H':ss['height'], constvar:constval, seriesvar:series[i]}
+        labelstr = seriesvar+'='+str(series[i])
+        db.select(**cols)
 
-yvar = 'adjerr'
-db.select(T=1.86,H=0.08,nH=10); ax3.loglog(db.column(xvar),100*db.column(yvar),styles[0],label=label[0])
-db.select(T=1.86,H=0.08,nH=20); ax3.loglog(db.column(xvar),100*db.column(yvar),styles[1],label=label[1])
-db.select(T=1.86,H=0.08,nH=30); ax3.loglog(db.column(xvar),100*db.column(yvar),styles[2],label=label[2])
-ax3.set_title('Wavelength-adjusted Maximum Error')
-ax3.set_ylabel('maximum L2-error norm')
+        # get or calculate x
+        #try:
+        xvals = db.column(xvar)
+        #except:
 
-ax2.set_xlabel(xlabel)
-ax3.set_xlabel(xlabel)
+        ax0.loglog(xvals, db.column('maxerr'), styles[i], label=labelstr)
+        ax1.loglog(xvals, db.column('cumerr'), styles[i], label=labelstr)
+        ax2.semilogx(xvals, np.abs(100*db.column('lamerr')), styles[i], label=labelstr)
+        ax3.loglog(xvals, db.column('adjerr'), styles[i], label=labelstr)
 
-lines, labels = ax0.get_legend_handles_labels()
-fig.legend(lines,labels,loc='lower center',ncol=3) #,bbox_to_anchor=(0.,-0.02,1.,0.1)
+    # xlim
+    ax0.set_xlim( calcLogRange(db.params[xvar]) )
 
-# display everything
+    # axes titles
+    fig.suptitle(title,fontsize=18)
+    ax0.set_title('Maximum Error'); ax0.set_ylabel('maximum L2-error norm')
+    ax1.set_title('Cumulative Error'); ax1.set_ylabel('cumulative L2-error norm')
+    ax2.set_title('Wavelength Error'); ax2.set_ylabel('wavelength error [%]')
+    ax3.set_title('Wavelength-adjusted Maximum Error'); ax3.set_ylabel('maximum L2-error norm')
+    try: varname = varnames[xvar]
+    except KeyError: varname = xvar
+    ax2.set_xlabel(varname)
+    ax3.set_xlabel(varname)
+
+    # legend
+    lines, labels = ax0.get_legend_handles_labels()
+    fig.legend(lines,labels,loc='lower center',ncol=nseries) #,bbox_to_anchor=(0.,-0.02,1.,0.1)
+
+#===============================================================================
+# plot definitions here
+
+errorPlot('Sea state 0: streamwise spacing error', ss0, \
+        xvar='nL', \
+        constvar='nH', constval=20,
+        seriesvar='cfl')
+
+errorPlot('Sea state 0: normal spacing error', ss0, \
+        xvar='nH', \
+        constvar='nL', constval=80,
+        seriesvar='cfl')
+
 plt.show()
 
