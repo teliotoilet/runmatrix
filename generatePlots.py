@@ -12,9 +12,10 @@ varnames['nL'] = 'cells per wavelength'
 varnames['nH'] = 'cells per waveheight'
 
 # sea state inputs / pre-calculated values
-ss0 = { 'period':1.86, 'height':0.08, 'wavelength':5.41217080198, 'wavespeed':2.90976924838 }
-ss5 = { 'period':5.66, 'height':1.20, 'wavelength':33.5676693735, 'wavespeed':5.9306836349  }
-
+ss0 = { 'period': 1.86, 'height': 0.08, 'wavelength': 5.41217080198, 'wavespeed': 2.90976924838, \
+        'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3), 'lamerr_range': (0,25) }
+ss5 = { 'period': 5.66, 'height': 1.20, 'wavelength': 33.5676693735, 'wavespeed': 5.9306836349, \
+        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
 #===============================================================================
 # define basic database class# {{{
 
@@ -210,9 +211,16 @@ def errorPlot(title='', \
             ax2.semilogx(xvals, np.abs(100*db.column('lamerr')), style, **styleargs )
             ax3.loglog(  xvals, db.column('adjerr'), style, **styleargs )
 
-    # xlim
+    # set axes limits
     #ax0.set_xlim( calcLogRange(db.params[xvar]) )
     ax0.set_xlim( calcLogRange([xmin,xmax]) )
+    if 'maxerr_range' in ss.keys():
+        ax0.set_ylim( ss['maxerr_range'] )
+        ax3.set_ylim( ss['maxerr_range'] )
+    if 'cumerr_range' in ss.keys():
+        ax1.set_ylim( ss['cumerr_range'] )
+    if 'lamerr_range' in ss.keys():
+        ax2.set_ylim( ss['lamerr_range'] )
 
     # axes titles
     fig.suptitle(title,fontsize=18)
