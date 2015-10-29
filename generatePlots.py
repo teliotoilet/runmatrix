@@ -13,9 +13,9 @@ varnames['nH'] = 'cells per waveheight'
 
 # sea state inputs / pre-calculated values
 ss0 = { 'period': 1.86, 'height': 0.08, 'wavelength': 5.41217080198, 'wavespeed': 2.90976924838, \
-        'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3), 'lamerr_range': (0,25) }
+        'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3)}#, 'lamerr_range': (0,25) }
 ss5 = { 'period': 5.66, 'height': 1.20, 'wavelength': 33.5676693735, 'wavespeed': 5.9306836349, \
-        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
+        'maxerr_range': (1,100), 'cumerr_range': (100,1e4)}#, 'lamerr_range': (0,15) }
 #===============================================================================
 # define basic database class# {{{
 
@@ -147,7 +147,8 @@ def errorPlot(title='', \
         series = db.params[seriesvar]
         nseries = len(series)
     else:
-        fig.subplots_adjust(bottom=0.1,left=0.125,top=0.875,right=0.95)
+        #fig.subplots_adjust(bottom=0.1,left=0.125,top=0.875,right=0.95)
+        fig.subplots_adjust(bottom=0.175,left=0.125,top=0.875,right=0.95)
         nseries = 1
     xmin = 9e9; xmax = -9e9
 
@@ -195,7 +196,7 @@ def errorPlot(title='', \
                     zip( xvals, \
                          db.column('maxerr'), \
                          db.column('cumerr'), \
-                         np.abs(100*db.column('cumerr')), \
+                         np.abs(100*db.column('lamerr')), \
                          db.column('adjerr'), \
                          colorscale ):
                 styleargs['markerfacecolor'] = (c,0,0)
