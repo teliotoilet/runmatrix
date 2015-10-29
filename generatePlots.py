@@ -5,25 +5,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 postdata='post_summary.dat'
 
-# general plot styles
-#coarse  = 'o'
-#medium  = '^'
-#fine    = 's'
-#vfine   = '*'
-#time0   = 'r'
-#time1   = 'g'
-#time2   = 'b'
+# general plot styles/names
 styles = ['^','s','o']
 varnames = dict()
 varnames['nL'] = 'cells per wavelength'
 varnames['nH'] = 'cells per waveheight'
 
-# pre-calculated values
+# sea state inputs / pre-calculated values
 ss0 = { 'period':1.86, 'height':0.08, 'wavelength':5.41217080198, 'wavespeed':2.90976924838 }
 ss5 = { 'period':5.66, 'height':1.20, 'wavelength':33.5676693735, 'wavespeed':5.9306836349  }
 
 #===============================================================================
-# basic database
+# define basic database class# {{{
 
 class case:
     def __init__(self, name, \
@@ -73,19 +66,22 @@ class runmatrix:
         for key in self.params: print key,':',self.params[key]
 
     def select(self, **kwargs):
+        if 'verbose' in kwargs.keys(): verbose = kwargs.pop('verbose')
+        else: verbose = False
         self.selected = range(len(self.cases))
         for name,value in kwargs.items():
             Ncases = len(self.selected)
-            print '  selecting',name,'=',value,'from',Ncases,'cases'
+            if verbose: print '  selecting',name,'=',value,'from',Ncases,'cases'
             newselection = []
             for icase in self.selected:
                 if getattr(self.cases[icase],name) == value:
                     newselection.append(icase)
             self.selected = newselection
-        sys.stdout.write('  result:')
-        for i in self.selected:
-            sys.stdout.write(' %s'%(self.cases[i].name))
-        sys.stdout.write('\n')
+        if verbose: 
+            sys.stdout.write('  result:')
+            for i in self.selected:
+                sys.stdout.write(' %s'%(self.cases[i].name))
+            sys.stdout.write('\n')
 
     def column(self, col):
         Nsel = len(self.selected)
@@ -94,8 +90,156 @@ class runmatrix:
             icase = self.selected[i]
             data[i] = getattr(self.cases[icase],col)
         return data
+# }}}
+# define plotting functions# {{{
+
+def frexp10(x):
+    assert( x > 0 )
+    exp = int(np.log10(x))
+    man = x / 10**exp
+    while man < 1.0:
+        man *= 10
+        exp -= 1
+    return man, exp
+def calcLogRange(vals):
+    debug = False
+    if debug: print 'range of values:',vals
+
+    m,e = frexp10(np.min(vals))
+    if debug: print 'xmin:',m,e
+    xmin = np.floor(m)-1
+    if debug: print 'xmin:',xmin
+    if xmin==0: xmin = 9*10**(e-1)
+    else: xmin *= 10**e
+    if debug: print 'xmin:',xmin
+
+    m,e = frexp10(np.max(vals))
+    if debug: print 'xmax:',m,e
+    xmax = np.ceil(m)+1
+    if debug: print 'xmax:',xmax
+    if xmax>=10: xmax = 2*10**(e+1)
+    else: xmax *= 10**e
+    if debug: print 'xmax:',xmax
+
+    if debug: print 'xrange',xmin,xmax
+    return (xmin,xmax)
+# }}}
+# define plot types
+
+def errorPlot(title='', \
+        ss=None, \
+        xvar='nL',xvarname='', \
+        constvar='',constval=0, \
+        seriesvar='cfl', \
+        timingcolor=False, \
+        save='', \
+        verbose=False):
+    if title: 
+        print ''
+        print 'MAKING NEW PLOT "%s"'%(title)
+    if constvar: assert( constval in db.params[constvar] )
+    
+    # setup plot
+    fig, [[ax0, ax1], [ax2, ax3]] = plt.subplots(nrows=2, ncols=2, sharex=True)
+    if seriesvar: 
+        fig.subplots_adjust(bottom=0.175,left=0.125,top=0.875,right=0.95)
+        series = db.params[seriesvar]
+        nseries = len(series)
+    else:
+        fig.subplots_adjust(bottom=0.1,left=0.125,top=0.875,right=0.95)
+        nseries = 1
+    xmin = 9e9; xmax = -9e9
+
+    cols = { 'T':ss['period'], 'H':ss['height'], 'verbose':verbose }
+    if constvar: cols[constvar] = constval
+
+    # make plot
+    for i in range(nseries):
+        # filter data
+        if nseries > 1: 
+            labelstr = seriesvar+'='+str(series[i])
+            if verbose: print ' - SERIES',i,':',labelstr
+            cols[seriesvar] = series[i]
+            style = styles[i]
+        else:
+            if verbose: print ' - no series specified'
+            labelstr = ''
+            style = '.'
+        db.select(**cols)
+
+        # get or calculate x
+        if xvar in db.params:
+            xvals = db.column(xvar)
+        else:
+            formula = xvar
+            if verbose: print 'Original formula:',formula
+            for param in db.params:
+                paramstr = '${'+param+'}'
+                if paramstr in formula:
+                    formula = formula.replace(paramstr,'db.column(\''+param+'\')')
+            if '${L}' in formula: formula = formula.replace('${L}',str(ss['wavelength']))
+            if '${U}' in formula: formula = formula.replace('${U}',str(ss['wavespeed']))
+            if verbose: print 'Evaluated formula:',formula
+            xvals = eval(formula)
+        xmin = min(xmin,np.min(xvals))
+        xmax = max(xmax,np.max(xvals))
+
+        if timingcolor:
+            # plot each point separately
+            styleargs = { 'markersize':16 }
+            colorscale = np.log(db.column('walltime'))
+            colorscale -= np.min(colorscale)
+            colorscale /= np.max(colorscale)
+            for xi,err1,err2,err3,err4,c in \
+                    zip( xvals, \
+                         db.column('maxerr'), \
+                         db.column('cumerr'), \
+                         np.abs(100*db.column('cumerr')), \
+                         db.column('adjerr'), \
+                         colorscale ):
+                styleargs['markerfacecolor'] = (c,0,0)
+                styleargs['markeredgecolor'] = (c,0,0)
+                ax0.loglog(  xi, err1, style, **styleargs )
+                ax1.loglog(  xi, err2, style, **styleargs )
+                ax2.semilogx(xi, err3, style, **styleargs )
+                ax3.loglog(  xi, err4, style, **styleargs )
+        else:
+            styleargs = { 'markersize':8, 'label':labelstr }
+            ax0.loglog(  xvals, db.column('maxerr'), style, **styleargs )
+            ax1.loglog(  xvals, db.column('cumerr'), style, **styleargs )
+            ax2.semilogx(xvals, np.abs(100*db.column('lamerr')), style, **styleargs )
+            ax3.loglog(  xvals, db.column('adjerr'), style, **styleargs )
+
+    # xlim
+    #ax0.set_xlim( calcLogRange(db.params[xvar]) )
+    ax0.set_xlim( calcLogRange([xmin,xmax]) )
+
+    # axes titles
+    fig.suptitle(title,fontsize=18)
+    ax0.set_title('Maximum Error'); ax0.set_ylabel('maximum L2-error norm')
+    ax1.set_title('Cumulative Error'); ax1.set_ylabel('cumulative L2-error norm')
+    ax2.set_title('Wavelength Error'); ax2.set_ylabel('wavelength error [%]')
+    ax3.set_title('Wavelength-adjusted Maximum Error'); ax3.set_ylabel('maximum L2-error norm')
+    if xvarname:
+        varname = xvarname
+    else:
+        try: varname = varnames[xvar]
+        except KeyError: varname = xvar
+    ax2.set_xlabel(varname)
+    ax3.set_xlabel(varname)
+
+    # legend
+    if nseries > 1:
+        lines, labels = ax0.get_legend_handles_labels()
+        fig.legend(lines,labels,loc='lower center',ncol=nseries) #,bbox_to_anchor=(0.,-0.02,1.,0.1)
+
+    # hardcopy
+    if save:
+        fig.savefig(save)
+        print 'Wrote',save
 
 #===============================================================================
+# read data and fill database# {{{
 
 if len(sys.argv) <= 1: sys.exit('specify name of study (omit .txt extension)')
 casename = sys.argv[1]
@@ -166,192 +310,61 @@ for i in range(Ncases):
             lamerr=lamerr[i], adjerr=adjerr[i], \
             ncells=ncells[i], walltime=walltime[i] )
 db.print_params()
-
-#===============================================================================
+# }}}
+#-------------------------------------------------------------------------------
 #
 # make plots
-#
-def frexp10(x):# {{{
-    assert( x > 0 )
-    exp = int(np.log10(x))
-    man = x / 10**exp
-    while man < 1.0:
-        man *= 10
-        exp -= 1
-    return man, exp
-def calcLogRange(vals):
-    debug = False
-    if debug: print 'range of values:',vals
-
-    m,e = frexp10(np.min(vals))
-    if debug: print 'xmin:',m,e
-    xmin = np.floor(m)-1
-    if debug: print 'xmin:',xmin
-    if xmin==0: xmin = 9*10**(e-1)
-    else: xmin *= 10**e
-    if debug: print 'xmin:',xmin
-
-    m,e = frexp10(np.max(vals))
-    if debug: print 'xmax:',m,e
-    xmax = np.ceil(m)+1
-    if debug: print 'xmax:',xmax
-    if xmax>=10: xmax = 2*10**(e+1)
-    else: xmax *= 10**e
-    if debug: print 'xmax:',xmax
-
-    if debug: print 'xrange',xmin,xmax
-    return (xmin,xmax)# }}}
-
-def errorPlot(title='', \
-        ss=None, \
-        xvar='nL',xvarname='', \
-        constvar='',constval=0, \
-        seriesvar='cfl', \
-        timingcolor=False):
-    if title: 
-        print ''
-        print 'MAKING NEW PLOT "%s"'%(title)
-    if constvar: assert( constval in db.params[constvar] )
-    
-    # setup plot
-    fig, [[ax0, ax1], [ax2, ax3]] = plt.subplots(nrows=2, ncols=2, sharex=True)
-    if seriesvar: 
-        fig.subplots_adjust(bottom=0.175,left=0.1,top=0.875,right=0.95)
-        series = db.params[seriesvar]
-        nseries = len(series)
-    else:
-        fig.subplots_adjust(bottom=0.1,left=0.1,top=0.875,right=0.95)
-        nseries = 1
-    xmin = 9e9; xmax = -9e9
-
-    cols = { 'T':ss['period'], 'H':ss['height'] }
-    if constvar: cols[constvar] = constval
-
-    # make plot
-    for i in range(nseries):
-        # filter data
-        if nseries > 1: 
-            labelstr = seriesvar+'='+str(series[i])
-            print ' - SERIES',i,':',labelstr
-            cols[seriesvar] = series[i]
-            style = styles[i]
-        else:
-            print ' - no series specified'
-            labelstr = 'asdf'
-            style = '.'
-        db.select(**cols)
-
-        # get or calculate x
-        if xvar in db.params:
-            xvals = db.column(xvar)
-        else:
-            formula = xvar
-            print 'Original formula:',formula
-            for param in db.params:
-                paramstr = '${'+param+'}'
-                if paramstr in formula:
-                    formula = formula.replace(paramstr,'db.column(\''+param+'\')')
-            if '${L}' in formula: formula = formula.replace('${L}',str(ss['wavelength']))
-            if '${U}' in formula: formula = formula.replace('${U}',str(ss['wavespeed']))
-            print 'Evaluated formula:',formula
-            xvals = eval(formula)
-        xmin = min(xmin,np.min(xvals))
-        xmax = max(xmax,np.max(xvals))
-
-        if timingcolor:
-            # plot each point separately
-            styleargs = { 'markersize':16 }
-            colorscale = np.log(db.column('walltime'))
-            colorscale -= np.min(colorscale)
-            colorscale /= np.max(colorscale)
-            for xi,err1,err2,err3,err4,c in \
-                    zip( xvals, \
-                         db.column('maxerr'), \
-                         db.column('cumerr'), \
-                         np.abs(100*db.column('cumerr')), \
-                         db.column('adjerr'), \
-                         colorscale ):
-                styleargs['markerfacecolor'] = (c,0,0)
-                styleargs['markeredgecolor'] = (c,0,0)
-                ax0.loglog(  xi, err1, style, **styleargs )
-                ax1.loglog(  xi, err2, style, **styleargs )
-                ax2.semilogx(xi, err3, style, **styleargs )
-                ax3.loglog(  xi, err4, style, **styleargs )
-        else:
-            styleargs = { 'markersize':8, 'label':labelstr }
-            ax0.loglog(  xvals, db.column('maxerr'), style, **styleargs )
-            ax1.loglog(  xvals, db.column('cumerr'), style, **styleargs )
-            ax2.semilogx(xvals, np.abs(100*db.column('lamerr')), style, **styleargs )
-            ax3.loglog(  xvals, db.column('adjerr'), style, **styleargs )
-
-    # xlim
-    #ax0.set_xlim( calcLogRange(db.params[xvar]) )
-    ax0.set_xlim( calcLogRange([xmin,xmax]) )
-
-    # axes titles
-    fig.suptitle(title,fontsize=18)
-    ax0.set_title('Maximum Error'); ax0.set_ylabel('maximum L2-error norm')
-    ax1.set_title('Cumulative Error'); ax1.set_ylabel('cumulative L2-error norm')
-    ax2.set_title('Wavelength Error'); ax2.set_ylabel('wavelength error [%]')
-    ax3.set_title('Wavelength-adjusted Maximum Error'); ax3.set_ylabel('maximum L2-error norm')
-    if xvarname:
-        varname = xvarname
-    else:
-        try: varname = varnames[xvar]
-        except KeyError: varname = xvar
-    ax2.set_xlabel(varname)
-    ax3.set_xlabel(varname)
-
-    # legend
-    if nseries > 1:
-        lines, labels = ax0.get_legend_handles_labels()
-        fig.legend(lines,labels,loc='lower center',ncol=nseries) #,bbox_to_anchor=(0.,-0.02,1.,0.1)
-
-#===============================================================================
-# plot definitions here
 
 # reference sea state
 
 errorPlot('Sea state 0: streamwise spacing error', ss0, \
         xvar='nL', \
         constvar='nH', constval=20,
-        seriesvar='cfl')
+        seriesvar='cfl', \
+        save='SS0_dx_err.png')
 
 errorPlot('Sea state 0: normal spacing error', ss0, \
         xvar='nH', \
         constvar='nL', constval=80,
-        seriesvar='cfl')
+        seriesvar='cfl', \
+        save='SS0_dz_err.png')
 
 errorPlot('Sea state 0: aspect ratio error', ss0, \
         #xvar='(${H}/${nH})/(${L}/${nL})', xvarname='aspect ratio, $\Delta y/\Delta x$', \
         xvar='(${L}/${nL})/(${H}/${nH})', xvarname='aspect ratio, $\Delta x/\Delta y$', \
-        seriesvar='cfl')
+        seriesvar='cfl', \
+        save='SS0_ar_err.png')
 
 errorPlot('Sea state 0: temporal error', ss0, \
         xvar='${T}/(${L}/${nL}/${U}*${cfl})', xvarname='Timesteps per period, $T/\Delta t$', \
-        seriesvar='', timingcolor=True)
+        seriesvar='', timingcolor=True, \
+        save='SS0_dt_err.png')
 
 # nonlinear sea state
 
 errorPlot('Sea state 5: streamwise spacing error', ss5, \
         xvar='nL', \
         constvar='nH', constval=20,
-        seriesvar='cfl')
+        seriesvar='cfl', \
+        save='SS5_dx_err.png')
 
 errorPlot('Sea state 5: normal spacing error', ss5, \
         xvar='nH', \
         constvar='nL', constval=80,
-        seriesvar='cfl')
+        seriesvar='cfl', \
+        save='SS5_dz_err.png')
 
 errorPlot('Sea state 5: aspect ratio error', ss5, \
         #xvar='(${H}/${nH})/(${L}/${nL})', xvarname='aspect ratio, $\Delta y/\Delta x$', \
         xvar='(${L}/${nL})/(${H}/${nH})', xvarname='aspect ratio, $\Delta x/\Delta y$', \
-        seriesvar='cfl')
+        seriesvar='cfl', \
+        save='SS5_ar_err.png')
 
 errorPlot('Sea state 5: temporal error', ss5, \
         xvar='${T}/(${L}/${nL}/${U}*${cfl})', xvarname='Timesteps per period, $T/\Delta t$', \
-        seriesvar='', timingcolor=True)
+        seriesvar='', timingcolor=True, \
+        save='SS5_dt_err.png')
 
 
-plt.show()
+#plt.show()
 
