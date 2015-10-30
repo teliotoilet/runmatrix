@@ -3,7 +3,11 @@ import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+
 postdata='post_summary.dat'
+
+showfigs = True
+savefigs = False
 
 # general plot styles/names
 styles = ['^','s','o']
@@ -13,9 +17,10 @@ varnames['nH'] = 'cells per waveheight'
 
 # sea state inputs / pre-calculated values
 ss0 = { 'period': 1.86, 'height': 0.08, 'wavelength': 5.41217080198, 'wavespeed': 2.90976924838, \
-        'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3)}#, 'lamerr_range': (0,25) }
+        'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3), 'lamerr_range': (0,25) }
 ss5 = { 'period': 5.66, 'height': 1.20, 'wavelength': 33.5676693735, 'wavespeed': 5.9306836349, \
-        'maxerr_range': (1,100), 'cumerr_range': (100,1e4)}#, 'lamerr_range': (0,15) }
+        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
+
 #===============================================================================
 # define basic database class# {{{
 
@@ -125,6 +130,8 @@ def calcLogRange(vals):
     if debug: print 'xrange',xmin,xmax
     return (xmin,xmax)
 # }}}
+# TODO: setup handler to allow mouse hover over points
+
 # define plot types
 
 def errorPlot(title='', \
@@ -139,6 +146,8 @@ def errorPlot(title='', \
         print ''
         print 'MAKING NEW PLOT "%s"'%(title)
     if constvar: assert( constval in db.params[constvar] )
+
+    if not savefigs: save='' # allow global override
     
     # setup plot
     fig, [[ax0, ax1], [ax2, ax3]] = plt.subplots(nrows=2, ncols=2, sharex=True)
@@ -186,6 +195,10 @@ def errorPlot(title='', \
         xmin = min(xmin,np.min(xvals))
         xmax = max(xmax,np.max(xvals))
 
+        maxerr = db.column('maxerr')
+        cumerr = db.column('cumerr')
+        lamerr = 100*np.abs(db.column('lamerr'))
+        adjerr = db.column('adjerr')
         if timingcolor:
             # plot each point separately
             styleargs = { 'markersize':16 }
@@ -193,24 +206,19 @@ def errorPlot(title='', \
             colorscale -= np.min(colorscale)
             colorscale /= np.max(colorscale)
             for xi,err1,err2,err3,err4,c in \
-                    zip( xvals, \
-                         db.column('maxerr'), \
-                         db.column('cumerr'), \
-                         np.abs(100*db.column('lamerr')), \
-                         db.column('adjerr'), \
-                         colorscale ):
+                    zip( xvals, maxerr, cumerr, lamerr, adjerr, colorscale ):
                 styleargs['markerfacecolor'] = (c,0,0)
                 styleargs['markeredgecolor'] = (c,0,0)
-                ax0.loglog(  xi, err1, style, **styleargs )
-                ax1.loglog(  xi, err2, style, **styleargs )
-                ax2.semilogx(xi, err3, style, **styleargs )
-                ax3.loglog(  xi, err4, style, **styleargs )
+                ax0.loglog(   xi, err1, style, **styleargs )
+                ax1.loglog(   xi, err2, style, **styleargs )
+                ax2.semilogx( xi, err3, style, **styleargs )
+                ax3.loglog(   xi, err4, style, **styleargs )
         else:
             styleargs = { 'markersize':8, 'label':labelstr }
-            ax0.loglog(  xvals, db.column('maxerr'), style, **styleargs )
-            ax1.loglog(  xvals, db.column('cumerr'), style, **styleargs )
-            ax2.semilogx(xvals, np.abs(100*db.column('lamerr')), style, **styleargs )
-            ax3.loglog(  xvals, db.column('adjerr'), style, **styleargs )
+            ax0.loglog(   xvals, maxerr, style, **styleargs )
+            ax1.loglog(   xvals, cumerr, style, **styleargs )
+            ax2.semilogx( xvals, lamerr, style, **styleargs )
+            ax3.loglog(   xvals, adjerr, style, **styleargs )
 
     # set axes limits
     #ax0.set_xlim( calcLogRange(db.params[xvar]) )
@@ -375,5 +383,5 @@ errorPlot('Sea state 5: temporal error', ss5, \
         save='SS5_dt_err.png')
 
 
-#plt.show()
+if showfigs: plt.show()
 
