@@ -10,7 +10,7 @@ showfigs = True
 savefigs = False
 
 # general plot styles/names
-styles = ['^','s','o']
+styles = ['r^','gs','bo']
 varnames = dict()
 varnames['nL'] = 'cells per wavelength'
 varnames['nH'] = 'cells per waveheight'
@@ -133,13 +133,17 @@ def calcLogRange(vals):
     if debug: print 'xrange',xmin,xmax
     return (xmin,xmax)
 # }}}
-# setup handler to allow mouse left click to find nearest point# {{{
+# handler mouse picks# {{{
 def onpick(event):
     line = event.artist
     xdata = line.get_xdata()
     ydata = line.get_ydata()
     ind = event.ind
-    print 'selected data point (%f,%f) : %s' % (xdata[ind][0],ydata[ind][0],line.get_label())
+    print 'picked (%f,%f): figure %d > %s > %s' \
+            % (xdata[ind][0],ydata[ind][0],\
+               line.figure.number,\
+               line.axes.get_title(),\
+               line.get_label())
 # }}}
 # define plot types
 
@@ -173,17 +177,19 @@ def errorPlot(title='', \
     cols = { 'T':ss['period'], 'H':ss['height'], 'verbose':verbose }
     if constvar: cols[constvar] = constval
 
+    if nseries > 1:
+        legendlabels = [ seriesvar+'='+str(series[i]) for i in range(nseries) ]
+        legendlines = []
+
     # make plot
     for i in range(nseries):
         # filter data
         if nseries > 1: 
-            labelstr = seriesvar+'='+str(series[i])
-            if verbose: print ' - SERIES',i,':',labelstr
+            if verbose: print ' - SERIES',i,':',legendlabels[i]
             cols[seriesvar] = series[i]
             style = styles[i]
         else:
             if verbose: print ' - no series specified'
-            labelstr = ''
             style = 'o'
         selected = db.select(**cols)
 
@@ -211,14 +217,13 @@ def errorPlot(title='', \
         adjerr = db.column('adjerr')
 
         # make subplots
+        styleargs = { 'markersize':8, 'picker':5 }
+        names = db.column('name')
         if timingcolor:
             # plot each point separately
-            #styleargs = { 'markersize':8 }
-            styleargs = { 'markersize':8, 'picker':5 }
             colorscale = np.log(db.column('walltime'))
             colorscale -= np.min(colorscale)
             colorscale /= np.max(colorscale)
-            names = db.column('name')
             for xi,err1,err2,err3,err4,c,name in \
                     zip( xvals, maxerr, cumerr, lamerr, adjerr, colorscale, names ):
                 styleargs['markerfacecolor'] = (c,0,0)
@@ -229,17 +234,19 @@ def errorPlot(title='', \
                 ax2.semilogx( xi, err3, style, **styleargs )
                 ax3.loglog(   xi, err4, style, **styleargs )
         else:
-            #styleargs = { 'markersize':8, 'label':labelstr }
-            styleargs = { 'markersize':8, 'label':labelstr, 'picker':5 }
-            ax0.loglog(   xvals, maxerr, style, **styleargs )
-            ax1.loglog(   xvals, cumerr, style, **styleargs )
-            ax2.semilogx( xvals, lamerr, style, **styleargs )
-            ax3.loglog(   xvals, adjerr, style, **styleargs )
+            for xi,err1,err2,err3,err4,name in \
+                    zip( xvals, maxerr, cumerr, lamerr, adjerr, names ):
+                styleargs['label'] = name
+                ax0.loglog(   xi, err1, style, **styleargs )
+                ax1.loglog(   xi, err2, style, **styleargs )
+                ax2.semilogx( xi, err3, style, **styleargs )
+                ax3.loglog(   xi, err4, style, **styleargs )
+
+        if nseries > 1: legendlines.append( ax0.get_lines()[-1] )
 
     # end of loop over series
 
     # set axes limits
-    #ax0.set_xlim( calcLogRange(db.params[xvar]) )
     ax0.set_xlim( calcLogRange([xmin,xmax]) )
     if 'maxerr_range' in ss.keys():
         ax0.set_ylim( ss['maxerr_range'] )
@@ -265,8 +272,9 @@ def errorPlot(title='', \
 
     # legend
     if nseries > 1:
-        lines, labels = ax0.get_legend_handles_labels()
-        fig.legend(lines,labels,loc='lower center',ncol=nseries) #,bbox_to_anchor=(0.,-0.02,1.,0.1)
+        #lines, labels = ax0.get_legend_handles_labels()
+        #fig.legend(lines,labels,loc='lower center',ncol=nseries) #,bbox_to_anchor=(0.,-0.02,1.,0.1)
+        fig.legend(legendlines,legendlabels,loc='lower center',ncol=nseries)
 
     # hardcopy
     if save:
