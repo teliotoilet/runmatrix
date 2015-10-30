@@ -88,14 +88,17 @@ class runmatrix:
             for i in self.selected:
                 sys.stdout.write(' %s'%(self.cases[i].name))
             sys.stdout.write('\n')
+        return self.selected
 
     def column(self, col):
         Nsel = len(self.selected)
-        data = np.zeros((Nsel))
+        #data = np.zeros((Nsel))
+        data = Nsel*[0]
         for i in range(Nsel):
             icase = self.selected[i]
             data[i] = getattr(self.cases[icase],col)
-        return data
+        try: return np.array(data)
+        except ValueError: return data
 # }}}
 # define plotting functions# {{{
 
@@ -130,8 +133,14 @@ def calcLogRange(vals):
     if debug: print 'xrange',xmin,xmax
     return (xmin,xmax)
 # }}}
-# TODO: setup handler to allow mouse hover over points
-
+# setup handler to allow mouse left click to find nearest point# {{{
+def onpick(event):
+    line = event.artist
+    xdata = line.get_xdata()
+    ydata = line.get_ydata()
+    ind = event.ind
+    print 'selected data point (%f,%f) : %s' % (xdata[ind][0],ydata[ind][0],line.get_label())
+# }}}
 # define plot types
 
 def errorPlot(title='', \
@@ -175,8 +184,8 @@ def errorPlot(title='', \
         else:
             if verbose: print ' - no series specified'
             labelstr = ''
-            style = '.'
-        db.select(**cols)
+            style = 'o'
+        selected = db.select(**cols)
 
         # get or calculate x
         if xvar in db.params:
@@ -195,30 +204,39 @@ def errorPlot(title='', \
         xmin = min(xmin,np.min(xvals))
         xmax = max(xmax,np.max(xvals))
 
+        # get y
         maxerr = db.column('maxerr')
         cumerr = db.column('cumerr')
         lamerr = 100*np.abs(db.column('lamerr'))
         adjerr = db.column('adjerr')
+
+        # make subplots
         if timingcolor:
             # plot each point separately
-            styleargs = { 'markersize':16 }
+            #styleargs = { 'markersize':8 }
+            styleargs = { 'markersize':8, 'picker':5 }
             colorscale = np.log(db.column('walltime'))
             colorscale -= np.min(colorscale)
             colorscale /= np.max(colorscale)
-            for xi,err1,err2,err3,err4,c in \
-                    zip( xvals, maxerr, cumerr, lamerr, adjerr, colorscale ):
+            names = db.column('name')
+            for xi,err1,err2,err3,err4,c,name in \
+                    zip( xvals, maxerr, cumerr, lamerr, adjerr, colorscale, names ):
                 styleargs['markerfacecolor'] = (c,0,0)
                 styleargs['markeredgecolor'] = (c,0,0)
+                styleargs['label'] = name
                 ax0.loglog(   xi, err1, style, **styleargs )
                 ax1.loglog(   xi, err2, style, **styleargs )
                 ax2.semilogx( xi, err3, style, **styleargs )
                 ax3.loglog(   xi, err4, style, **styleargs )
         else:
-            styleargs = { 'markersize':8, 'label':labelstr }
+            #styleargs = { 'markersize':8, 'label':labelstr }
+            styleargs = { 'markersize':8, 'label':labelstr, 'picker':5 }
             ax0.loglog(   xvals, maxerr, style, **styleargs )
             ax1.loglog(   xvals, cumerr, style, **styleargs )
             ax2.semilogx( xvals, lamerr, style, **styleargs )
             ax3.loglog(   xvals, adjerr, style, **styleargs )
+
+    # end of loop over series
 
     # set axes limits
     #ax0.set_xlim( calcLogRange(db.params[xvar]) )
@@ -254,6 +272,10 @@ def errorPlot(title='', \
     if save:
         fig.savefig(save)
         print 'Wrote',save
+
+    # handle picks
+    fig.canvas.mpl_connect('pick_event', onpick)
+
 
 #===============================================================================
 # read data and fill database# {{{
