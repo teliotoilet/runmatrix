@@ -4,22 +4,44 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-postdata='post_summary.dat'
-
 showfigs = True
 savefigs = True
+
+postdata='post_summary.dat'
+
+# set parameters and defaults
+paramNames = ['name','T','H','nL','nH','cfl','halfL','dampL'] # order here is important, should match the .txt file
+paramType = dict()
+paramType['T'] = np.float64 #double precision is default
+paramType['H'] = np.float64
+paramType['nL'] = np.uint16
+paramType['nH'] = np.uint16
+paramType['cfl'] = np.float64
+paramType['halfL'] = np.float64
+paramType['dampL'] = np.float64
+paramDefault = dict()
+paramDefault['nL'] = 80
+paramDefault['nH'] = 20
+paramDefault['cfl'] = 0.5
+paramDefault['halfL'] = 3.0
+paramDefault['dampL'] = 1.5
+
+# define sea state inputs / pre-calculated values
+ss0 = { 'period': 1.86, 'height': 0.08, 'wavelength': 5.41217080198, 'wavespeed': 2.90976924838, \
+        'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3), 'lamerr_range': (0,25) }
+ss5 = { 'period': 5.66, 'height': 1.20, 'wavelength': 33.5676693735, 'wavespeed': 5.9306836349, \
+        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
+ss4 = { 'period': 4.38, 'height': 1.60, 'wavelength': 25.0056383174, 'wavespeed': 5.70904984415, \
+        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
 
 # general plot styles/names
 styles = ['r^','gs','bo']
 varnames = dict()
 varnames['nL'] = 'cells per wavelength'
 varnames['nH'] = 'cells per waveheight'
-
-# sea state inputs / pre-calculated values
-ss0 = { 'period': 1.86, 'height': 0.08, 'wavelength': 5.41217080198, 'wavespeed': 2.90976924838, \
-        'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3), 'lamerr_range': (0,25) }
-ss5 = { 'period': 5.66, 'height': 1.20, 'wavelength': 33.5676693735, 'wavespeed': 5.9306836349, \
-        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
+varnames['cfl'] = 'CFL'
+varnames['halfL'] = 'domain halflength'
+varnames['dampL'] = 'damping length'
 
 #===============================================================================
 # define basic database class# {{{
@@ -29,6 +51,7 @@ class case:
             T=-1, H=-1, \
             nL=-1, nH=-1, \
             cfl=-1, \
+            halfL=-1, dampL=-1, \
             maxerr=-1, cumerr=-1, \
             lamerr=999, adjerr=-1, \
             ncells=-1, walltime=-1):
@@ -38,6 +61,8 @@ class case:
         self.nL = nL
         self.nH = nH
         self.cfl = cfl
+        self.halfL = halfL
+        self.dampL = dampL
         self.maxerr = maxerr
         self.cumerr = cumerr
         self.lamerr = lamerr
@@ -186,7 +211,13 @@ def errorPlot(title='', \
     if constvar: cols[constvar] = constval
 
     if nseries > 1:
-        legendlabels = [ seriesvar+'='+str(series[i]) for i in range(nseries) ]
+        #legendlabels = [ seriesvar+'='+str(series[i]) for i in range(nseries) ]
+        legendlabels = []
+        for i in range(nseries):
+            try:
+                legendlabels.append( varnames[seriesvar] + '=' + str(series[i]) )
+            except KeyError:
+                legendlabels.append( seriesvar + '=' + str(series[i]) )
         legendlines = []
 
     # make plot
@@ -297,75 +328,111 @@ def errorPlot(title='', \
 #===============================================================================
 # read data and fill database# {{{
 
-if len(sys.argv) <= 1: sys.exit('specify name of study (omit .txt extension)')
-casename = sys.argv[1]
+if len(sys.argv) <= 1: sys.exit('specify name of studies (omit .txt extension)')
+#casename = sys.argv[1]
+casenames = sys.argv[1:]
 
 #
 # initialize data
 #
 Ncases = 0
-with open(casename+'.txt','r') as f:
-    for line in f: Ncases += 1
+for casename in casenames:
+    n = 0
+    with open(casename+'.txt','r') as f:
+        for line in f: n += 1
+    print n,'cases in',casename
+    Ncases += n
+print Ncases,'total cases'
 
-name = [ '' for i in range(Ncases) ]
-T = np.zeros((Ncases))
-H = np.zeros((Ncases))
-nL = np.zeros((Ncases),dtype=np.int16)
-nH = np.zeros((Ncases),dtype=np.int16)
-cfl = np.zeros((Ncases))
+#name = [ '' for i in range(Ncases) ]
+#T = np.zeros((Ncases))
+#H = np.zeros((Ncases))
+#nL = np.zeros((Ncases),dtype=np.uint16)
+#nH = np.zeros((Ncases),dtype=np.uint16)
+#cfl = np.zeros((Ncases))
+data = dict()
+for param in paramNames:
+    if param=='name':
+        data['name'] = [ '' for i in range(Ncases) ]
+        continue
+    try: default = paramDefault[param]
+    except KeyError: default = -1
+    data[param] = default * np.ones((Ncases), dtype=paramType[param])
 maxerr = np.zeros((Ncases))
 cumerr = np.zeros((Ncases))
 lamerr = np.zeros((Ncases))
 adjerr = np.zeros((Ncases))
-ncells = np.zeros((Ncases),dtype=np.int32)
+ncells = np.zeros((Ncases),dtype=np.uint32)
 walltime = np.zeros((Ncases))
 
 # 
 # read data
 #
-fname = casename + '.txt'
-print 'Reading',fname
-with open(fname,'r') as f:
-    i = -1
-    for line in f:
-        line = line.split()
-        i += 1
-        name[i] = line[0]
-        T[i] = float(line[1])
-        H[i] = float(line[2])
-        nL[i] = int(line[3])
-        nH[i] = int(line[4])
-        cfl[i] = float(line[5])
-        
-fname = casename + os.sep + postdata
-print 'Reading',fname
-with open(fname,'r') as f:
-    i = -1
-    for line in f:
-        line = line.split()
-        i += 1
-        assert( line[0] == name[i] )
-        maxerr[i] = float(line[1])
-        cumerr[i] = float(line[2])
-        lamerr[i] = float(line[3])
-        adjerr[i] = float(line[4])
-        ncells[i] = int(line[5])
-        walltime[i] = float(line[6])
-        
+db = runmatrix()
+icase = 0 # initial case offset
+for casename in casenames:
+
+    fnameIn = casename + '.txt'
+    fnameOut = casename + os.sep + postdata
+
+    print 'Reading case inputs from',fnameIn
+    iin = -1
+    with open(fnameIn,'r') as fin:
+        for line in fin:
+            line = line.split()
+            iin += 1
+            data['name'][iin] = line[0]
+            data['T'][icase+iin] = float(line[1])
+            data['H'][icase+iin] = float(line[2])
+            data['nL'][icase+iin] = int(line[3])
+            data['nH'][icase+iin] = int(line[4])
+            data['cfl'][icase+iin] = float(line[5])
+            
+    print 'Reading postdata from ',fnameOut
+    iout = -1
+    with open(fnameOut,'r') as fout:
+        for line in fout:
+            line = line.split()
+            iout += 1
+            assert( line[0] == data['name'][iout] )
+            maxerr[icase+iout] = float(line[1])
+            cumerr[icase+iout] = float(line[2])
+            lamerr[icase+iout] = float(line[3])
+            adjerr[icase+iout] = float(line[4])
+            ncells[icase+iout] = int(line[5])
+            walltime[icase+iout] = float(line[6])
+            
+    assert(iin==iout)
+    icase = iin + 1
+
 # 
 # fill runmatrix
+# TODO: move this to inside the read loop so we don't need extra storage
 #
-db = runmatrix()
 for i in range(Ncases):
-    #db.add_case( name[i] )
-    db.add_case( name[i], \
-            T=T[i], H=H[i], \
-            nL=nL[i], nH=nH[i], \
-            cfl=cfl[i], \
-            maxerr=maxerr[i], cumerr=cumerr[i], \
-            lamerr=lamerr[i], adjerr=adjerr[i], \
-            ncells=ncells[i], walltime=walltime[i] )
+    #db.add_case( name[i], \
+    #        T=T[i], H=H[i], \
+    #        nL=nL[i], nH=nH[i], \
+    #        cfl=cfl[i], \
+    #        maxerr=maxerr[i], cumerr=cumerr[i], \
+    #        lamerr=lamerr[i], adjerr=adjerr[i], \
+    #        ncells=ncells[i], walltime=walltime[i] )
+    casedata = { \
+        'maxerr': maxerr[i], \
+        'cumerr': cumerr[i], \
+        'lamerr': lamerr[i], \
+        'adjerr': adjerr[i], \
+        'ncells': ncells[i], \
+        'walltime': walltime[i] \
+    }
+    for param in paramNames:
+        casedata[param] = data[param][i]
+    #print i,casedata
+
+    db.add_case( **casedata )
+
 db.print_params()
+
 # }}}
 #-------------------------------------------------------------------------------
 #
