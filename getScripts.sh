@@ -1,3 +1,3 @@
 #!/bin/bash
 
-scpthis \*.sh \*.pbs
+scp equon@peregrine:/scratch/equon/`this`/{*.sh*,*.txt,*.pbs} .

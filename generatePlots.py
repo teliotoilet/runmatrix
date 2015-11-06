@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 postdata='post_summary.dat'
 
 showfigs = True
-savefigs = False
+savefigs = True
 
 # general plot styles/names
 styles = ['r^','gs','bo']
@@ -53,8 +53,10 @@ class runmatrix:
         self.selected = []
         self.params = dict()
         self.excludedKeys = ['name','ncells','walltime']
+        self.caseid = dict()
 
     def add_case(self, name, **kwargs):
+        self.caseid[name] = len(self.cases)
         self.cases.append( case(name, **kwargs) )
         c = self.cases[-1]
         for key in dir(c):
@@ -67,6 +69,9 @@ class runmatrix:
                     self.params[key].append(value)
             except KeyError:
                 self.params[key] = [value]
+
+    def get_case(self, name):
+        return self.cases[ self.caseid[name] ]
 
     def print_params(self):
         for key in self.params: print key,':',self.params[key]
@@ -139,13 +144,16 @@ def onpick(event):
     xdata = line.get_xdata()
     ydata = line.get_ydata()
     ind = event.ind
-    print 'picked (%f,%f): figure %d > %s > %s' \
-            % (xdata[ind][0],ydata[ind][0],\
-               line.figure.number,\
-               line.axes.get_title(),\
-               line.get_label())
+    name = line.get_label()
+    print 'picked (%f,%f): figure %d > %s > %s (walltime=%d)' \
+            % (xdata[ind][0],ydata[ind][0], \
+               line.figure.number, \
+               line.axes.get_title(), \
+               name, \
+               db.get_case(name).walltime \
+              )
 # }}}
-# define plot types
+# define plot types# {{{
 
 def errorPlot(title='', \
         ss=None, \
@@ -278,13 +286,14 @@ def errorPlot(title='', \
 
     # hardcopy
     if save:
-        fig.savefig(save)
+        #fig.savefig(save)
+        fig.savefig(casename + os.sep + save)
         print 'Wrote',save
 
     # handle picks
     fig.canvas.mpl_connect('pick_event', onpick)
 
-
+# }}}
 #===============================================================================
 # read data and fill database# {{{
 
@@ -364,7 +373,7 @@ db.print_params()
 
 # reference sea state
 
-errorPlot('Sea state 0: streamwise spacing error', ss0, \
+errorPlot('Sea state 0: downwave spacing error', ss0, \
         xvar='nL', \
         constvar='nH', constval=20,
         seriesvar='cfl', \
@@ -377,8 +386,8 @@ errorPlot('Sea state 0: normal spacing error', ss0, \
         save='SS0_dz_err.png')
 
 errorPlot('Sea state 0: aspect ratio error', ss0, \
-        #xvar='(${H}/${nH})/(${L}/${nL})', xvarname='aspect ratio, $\Delta y/\Delta x$', \
-        xvar='(${L}/${nL})/(${H}/${nH})', xvarname='aspect ratio, $\Delta x/\Delta y$', \
+        #xvar='(${H}/${nH})/(${L}/${nL})', xvarname='aspect ratio, $\Delta z/\Delta x$', \
+        xvar='(${L}/${nL})/(${H}/${nH})', xvarname='aspect ratio, $\Delta x/\Delta z$', \
         seriesvar='cfl', \
         save='SS0_ar_err.png')
 
@@ -389,7 +398,7 @@ errorPlot('Sea state 0: temporal error', ss0, \
 
 # nonlinear sea state
 
-errorPlot('Sea state 5: streamwise spacing error', ss5, \
+errorPlot('Sea state 5: downwave spacing error', ss5, \
         xvar='nL', \
         constvar='nH', constval=20,
         seriesvar='cfl', \
@@ -402,8 +411,8 @@ errorPlot('Sea state 5: normal spacing error', ss5, \
         save='SS5_dz_err.png')
 
 errorPlot('Sea state 5: aspect ratio error', ss5, \
-        #xvar='(${H}/${nH})/(${L}/${nL})', xvarname='aspect ratio, $\Delta y/\Delta x$', \
-        xvar='(${L}/${nL})/(${H}/${nH})', xvarname='aspect ratio, $\Delta x/\Delta y$', \
+        #xvar='(${H}/${nH})/(${L}/${nL})', xvarname='aspect ratio, $\Delta z/\Delta x$', \
+        xvar='(${L}/${nL})/(${H}/${nH})', xvarname='aspect ratio, $\Delta x/\Delta z$', \
         seriesvar='cfl', \
         save='SS5_ar_err.png')
 

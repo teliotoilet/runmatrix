@@ -1,0 +1,48 @@
+
+#cd $PBS_O_WORKDIR #uncomment this if not using superscript
+
+simName=`pwd`
+simName=${simName##*/}
+
+#/nopt/nrel/admin/bin/lmutil lmstat -c 1999@wind-lic.nrel.gov -a
+#module load star-ccm/9.04.011
+star=/home/equon/STAR-CCM+10.04.011-R8/star/bin/starccm+
+
+cat $PBS_NODEFILE | sort > nodelist
+
+nodes=$PBS_NUM_NODES
+cores=$PBS_NUM_PPN
+nprocs=$(($nodes*$cores))
+
+# 
+# Run Job
+# 
+echo "$simName: Started job in `pwd` at `date`"
+echo "$simName: Running $star with $nprocs procs - `cat nodelist | tr '\n' ' '`"
+t0=`date "+%s"`
+#if [ -f "${simname}.log" ]; then #restart
+#if [ -s "${simname}.log" -a -z "`grep Terminated ${simname}.log`" ]; then #restart
+if [ -s "${simname}.log" ] && [ -z "`grep Terminated ${simname}.log`" ]; then #restart
+    date >> RUNNING
+    echo "jobid: $PBS_JOBID" >> RUNNING
+    $star -rsh "ssh -oStrictHostKeyChecking=no" -machinefile nodelist -np $nprocs \
+        -batch ${simName}.sim >> ${simName}.log
+    t1=`date "+%s"`
+    echo $((t1-t0)) >> walltime
+    #rm RUNNING
+else #clean start
+    date > RUNNING
+    echo "jobid: $PBS_JOBID" >> RUNNING
+    $star -rsh "ssh -oStrictHostKeyChecking=no" -machinefile nodelist -np $nprocs \
+        -batch setupSim.java ${simName}.sim > ${simName}.log
+    t1=`date "+%s"`
+    echo $((t1-t0)) > walltime
+    #rm RUNNING
+fi
+echo "$simName: Job in `pwd` finished at `date`"
+echo ''
+
+endStr=`tail ${simName}.log | grep "Stopping criterion Maximum Physical Time satisfied."`
+if [ -n "$endStr" ]; then 
+    mv RUNNING DONE
+fi
