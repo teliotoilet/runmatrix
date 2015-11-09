@@ -350,12 +350,6 @@ for casename in casenames:
     Ncases += n
 print Ncases,'total cases'
 
-#name = [ '' for i in range(Ncases) ]
-#T = np.zeros((Ncases))
-#H = np.zeros((Ncases))
-#nL = np.zeros((Ncases),dtype=np.uint16)
-#nH = np.zeros((Ncases),dtype=np.uint16)
-#cfl = np.zeros((Ncases))
 data = dict()
 for param in paramNames:
     if param=='name':
@@ -387,12 +381,6 @@ for casename in casenames:
         for line in fin:
             line = line.split()
             iin += 1
-            #data['name'][iin] = line[0]
-            #data['T'][icase+iin] = float(line[1])
-            #data['H'][icase+iin] = float(line[2])
-            #data['nL'][icase+iin] = int(line[3])
-            #data['nH'][icase+iin] = int(line[4])
-            #data['cfl'][icase+iin] = float(line[5])
             for ival in range(len(paramNames)):
                 param = paramNames[ival]
                 typ = paramType[param]
@@ -422,13 +410,6 @@ for casename in casenames:
 # TODO: move this to inside the read loop so we don't need extra storage
 #
 for i in range(Ncases):
-    #db.add_case( name[i], \
-    #        T=T[i], H=H[i], \
-    #        nL=nL[i], nH=nH[i], \
-    #        cfl=cfl[i], \
-    #        maxerr=maxerr[i], cumerr=cumerr[i], \
-    #        lamerr=lamerr[i], adjerr=adjerr[i], \
-    #        ncells=ncells[i], walltime=walltime[i] )
     casedata = { \
         'maxerr': maxerr[i], \
         'cumerr': cumerr[i], \
@@ -439,7 +420,6 @@ for i in range(Ncases):
     }
     for param in paramNames:
         casedata[param] = data[param][i]
-    #print i,casedata
 
     db.add_case( **casedata )
 
