@@ -7,45 +7,51 @@ import matplotlib.pyplot as plt
 #
 # SETUP
 #
-showfigs = True #display interactive plots
-savefigs = True #save images
+showfigs = True # display interactive plots
+savefigs = True # save images
 
 # name of file in case directory containing postprocessed data, generated with post.sh and post_wave.py
 postdata='post_summary.dat'
 
 # set parameters and defaults
-paramNames = ['name','T','H','nL','nH','cfl','halfL','dampL'] # order here is important, should match the .txt file
-paramType = dict()
-paramType['name'] = str
-paramType['T'] = np.float64 #double precision is default
-paramType['H'] = np.float64
-paramType['nL'] = np.uint16
-paramType['nH'] = np.uint16
-paramType['cfl'] = np.float64
-paramType['halfL'] = np.float64
-paramType['dampL'] = np.float64
-paramDefault = dict()
-paramDefault['nL'] = 80
-paramDefault['nH'] = 20
-paramDefault['cfl'] = 0.5
-paramDefault['halfL'] = 3.0
-paramDefault['dampL'] = 1.5
+# *** order in paramNames is important, should match the .txt file ***
+paramNames = ['name','T','H','nL','nH','cfl','halfL','dampL']
+paramTypes = { \
+        'name': str, \
+        'T': np.float64, \
+        'H': np.float64, \
+        'nL': np.uint16, \
+        'nH': np.uint16, \
+        'cfl': np.float64, \
+        'halfL': np.float64, \
+        'dampL': np.float64 \
+        }
+paramDefaults = { \
+        'nL': 80, \
+        'nH': 20, \
+        'cfl': 0.5, \
+        'halfL': 3.0, \
+        'dampL': 1.5 \
+        }
+paramLongNames = { \
+        'nL': 'cells per wavelength', \
+        'nH': 'cells per waveheight', \
+        'cfl': 'CFL', \
+        'halfL': 'domain halflength', \
+        'dampL': 'damping length' \
+        }
+seriesStyles = ['r^','gs','bo']
+defaultStyle = 'o'
 
-# general plot styles/names
-styles = ['r^','gs','bo']
-varnames = dict()
-varnames['nL'] = 'cells per wavelength'
-varnames['nH'] = 'cells per waveheight'
-varnames['cfl'] = 'CFL'
-varnames['halfL'] = 'domain halflength'
-varnames['dampL'] = 'damping length'
-
-# define sea state inputs / pre-calculated values
-ss0 = { 'period': 1.86, 'height': 0.08, 'wavelength': 5.41217080198, 'wavespeed': 2.90976924838, \
+# define sea state inputs | pre-calculated values (wavelength/speed) | plot ranges
+ss0 = { 'period': 1.86, 'height': 0.08, \
+        'wavelength': 5.41217080198, 'wavespeed': 2.90976924838, \
         'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3), 'lamerr_range': (0,25) }
-ss5 = { 'period': 5.66, 'height': 1.20, 'wavelength': 33.5676693735, 'wavespeed': 5.9306836349, \
+ss5 = { 'period': 5.66, 'height': 1.20, \
+        'wavelength': 33.5676693735, 'wavespeed': 5.9306836349, \
         'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
-ss4 = { 'period': 4.38, 'height': 1.60, 'wavelength': 25.0056383174, 'wavespeed': 5.70904984415, \
+ss4 = { 'period': 4.38, 'height': 1.60, \
+        'wavelength': 25.0056383174, 'wavespeed': 5.70904984415, \
         'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
 
 #===============================================================================
@@ -220,7 +226,7 @@ def errorPlot(title='', \
         legendlabels = []
         for i in range(nseries):
             try:
-                legendlabels.append( varnames[seriesvar] + '=' + str(series[i]) )
+                legendlabels.append( paramLongNames[seriesvar] + '=' + str(series[i]) )
             except KeyError:
                 legendlabels.append( seriesvar + '=' + str(series[i]) )
         legendlines = []
@@ -231,10 +237,10 @@ def errorPlot(title='', \
         if nseries > 1: 
             if verbose: print ' - SERIES',i,':',legendlabels[i]
             cols[seriesvar] = series[i]
-            style = styles[i]
+            style = seriesStyles[i]
         else:
             if verbose: print ' - no series specified'
-            style = 'o'
+            style = defaultStyle
         selected = db.select(**cols)
         print '  selected',len(selected),'cases to plot'
 
@@ -310,7 +316,7 @@ def errorPlot(title='', \
     if xvarname:
         varname = xvarname
     else:
-        try: varname = varnames[xvar]
+        try: varname = paramLongNames[xvar]
         except KeyError: varname = xvar
     ax2.set_xlabel(varname)
     ax3.set_xlabel(varname)
@@ -355,9 +361,9 @@ for param in paramNames:
     if param=='name':
         data['name'] = [ '' for i in range(Ncases) ]
         continue
-    try: default = paramDefault[param]
+    try: default = paramDefaults[param]
     except KeyError: default = -1
-    data[param] = default * np.ones((Ncases), dtype=paramType[param])
+    data[param] = default * np.ones((Ncases), dtype=paramTypes[param])
 maxerr = np.zeros((Ncases))
 cumerr = np.zeros((Ncases))
 lamerr = np.zeros((Ncases))
@@ -383,7 +389,7 @@ for casename in casenames:
             iin += 1
             for ival in range(len(paramNames)):
                 param = paramNames[ival]
-                typ = paramType[param]
+                typ = paramTypes[param]
                 try:
                     data[param][icase+iin] = typ(line[ival])
                 except IndexError: break
