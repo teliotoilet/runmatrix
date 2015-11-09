@@ -4,14 +4,19 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-showfigs = True
-savefigs = True
+#
+# SETUP
+#
+showfigs = True #display interactive plots
+savefigs = True #save images
 
+# name of file in case directory containing postprocessed data, generated with post.sh and post_wave.py
 postdata='post_summary.dat'
 
 # set parameters and defaults
 paramNames = ['name','T','H','nL','nH','cfl','halfL','dampL'] # order here is important, should match the .txt file
 paramType = dict()
+paramType['name'] = str
 paramType['T'] = np.float64 #double precision is default
 paramType['H'] = np.float64
 paramType['nL'] = np.uint16
@@ -26,14 +31,6 @@ paramDefault['cfl'] = 0.5
 paramDefault['halfL'] = 3.0
 paramDefault['dampL'] = 1.5
 
-# define sea state inputs / pre-calculated values
-ss0 = { 'period': 1.86, 'height': 0.08, 'wavelength': 5.41217080198, 'wavespeed': 2.90976924838, \
-        'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3), 'lamerr_range': (0,25) }
-ss5 = { 'period': 5.66, 'height': 1.20, 'wavelength': 33.5676693735, 'wavespeed': 5.9306836349, \
-        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
-ss4 = { 'period': 4.38, 'height': 1.60, 'wavelength': 25.0056383174, 'wavespeed': 5.70904984415, \
-        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
-
 # general plot styles/names
 styles = ['r^','gs','bo']
 varnames = dict()
@@ -42,6 +39,14 @@ varnames['nH'] = 'cells per waveheight'
 varnames['cfl'] = 'CFL'
 varnames['halfL'] = 'domain halflength'
 varnames['dampL'] = 'damping length'
+
+# define sea state inputs / pre-calculated values
+ss0 = { 'period': 1.86, 'height': 0.08, 'wavelength': 5.41217080198, 'wavespeed': 2.90976924838, \
+        'maxerr_range': (0.01,1), 'cumerr_range': (1,1e3), 'lamerr_range': (0,25) }
+ss5 = { 'period': 5.66, 'height': 1.20, 'wavelength': 33.5676693735, 'wavespeed': 5.9306836349, \
+        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
+ss4 = { 'period': 4.38, 'height': 1.60, 'wavelength': 25.0056383174, 'wavespeed': 5.70904984415, \
+        'maxerr_range': (1,100), 'cumerr_range': (100,1e4), 'lamerr_range': (0,15) }
 
 #===============================================================================
 # define basic database class# {{{
@@ -231,6 +236,7 @@ def errorPlot(title='', \
             if verbose: print ' - no series specified'
             style = 'o'
         selected = db.select(**cols)
+        print '  selected',len(selected),'cases to plot'
 
         # get or calculate x
         if xvar in db.params:
@@ -381,20 +387,26 @@ for casename in casenames:
         for line in fin:
             line = line.split()
             iin += 1
-            data['name'][iin] = line[0]
-            data['T'][icase+iin] = float(line[1])
-            data['H'][icase+iin] = float(line[2])
-            data['nL'][icase+iin] = int(line[3])
-            data['nH'][icase+iin] = int(line[4])
-            data['cfl'][icase+iin] = float(line[5])
+            #data['name'][iin] = line[0]
+            #data['T'][icase+iin] = float(line[1])
+            #data['H'][icase+iin] = float(line[2])
+            #data['nL'][icase+iin] = int(line[3])
+            #data['nH'][icase+iin] = int(line[4])
+            #data['cfl'][icase+iin] = float(line[5])
+            for ival in range(len(paramNames)):
+                param = paramNames[ival]
+                typ = paramType[param]
+                try:
+                    data[param][icase+iin] = typ(line[ival])
+                except IndexError: break
             
-    print 'Reading postdata from ',fnameOut
+    print 'Reading postdata from',fnameOut
     iout = -1
     with open(fnameOut,'r') as fout:
         for line in fout:
             line = line.split()
             iout += 1
-            assert( line[0] == data['name'][iout] )
+            assert( line[0] == data['name'][icase+iout] )
             maxerr[icase+iout] = float(line[1])
             cumerr[icase+iout] = float(line[2])
             lamerr[icase+iout] = float(line[3])
@@ -437,6 +449,7 @@ db.print_params()
 #-------------------------------------------------------------------------------
 #
 # make plots
+#
 
 # reference sea state
 
