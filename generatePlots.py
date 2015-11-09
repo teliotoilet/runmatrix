@@ -7,7 +7,7 @@ showfigs = True # display interactive plots
 #
 # SETUP RUNMATRIX
 #
-mat.savefigs = False # save images
+mat.savefigs = True # save images
 
 # name of file in case directory containing postprocessed data, generated with post.sh and post_wave.py
 mat.postdata='post_summary.dat'
@@ -138,17 +138,20 @@ db.errorPlot(ss5,
         title='Sea state 5: damping length error',
         xvar='dampL',xscale='linear',
         #constvar='halfL', constval=3,
-        constvar=['nL','halfL'], constval=[80,3],
+        #constvar=['nL','halfL'], constval=[80,3],
         #constvar=['nL','nH','halfL'], constval=[80,10,3],
+        constvar=['nL','nH','halfL'], constval=[80,(10,20),3],
         seriesvar='cfl',seriesrange=(0,0.25),
-        save='2_domain_study/SS5_dampL_err.png')
+        save='2_domain_study/SS5_dampL_err.png',
+        verbose=True)
 
 db.errorPlot(ss5,
         title='Sea state 5: domain length error',
         xvar='halfL',xscale='linear',
         #constvar='dampL', constval=1.5,
-        constvar=['nL','dampL'], constval=[80,1.5],
+        #constvar=['nL','dampL'], constval=[80,1.5],
         #constvar=['nL','nH','dampL'], constval=[80,10,1.5],
+        constvar=['nL','nH','dampL'], constval=[80,(10,20),1.5],
         seriesvar='cfl',seriesrange=(0,0.25),
         save='2_domain_study/SS5_halfL_err.png')
 

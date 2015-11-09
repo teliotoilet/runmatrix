@@ -112,6 +112,7 @@ class case:
 
 class runmatrix:
 
+    # basic routines# {{{
     def __init__(self,casenames=''):
         self.cases = []
         self.selected = []
@@ -141,25 +142,28 @@ class runmatrix:
     def print_params(self,pre=''):
         for key in self.params: print pre+key,':',self.params[key]
 
-    def select(self, **kwargs):# {{{
+    def select(self, **kwargs):
         if 'verbose' in kwargs.keys(): verbose = kwargs.pop('verbose')
         else: verbose = False
         self.selected = range(len(self.cases))
         for name,value in kwargs.items():
             Ncases = len(self.selected)
+            if verbose: print '  selecting',name,'=',value,'from',Ncases,'cases'
             newselection = []
             for icase in self.selected:
-                if getattr(self.cases[icase],name) == value:
-                    newselection.append(icase)
+                caseval = getattr(self.cases[icase],name)
+                if isinstance(value, tuple):
+                    if caseval in value: newselection.append(icase)
+                elif caseval==value: newselection.append(icase)
             self.selected = newselection
         if verbose: 
             sys.stdout.write('  result:')
             for i in self.selected:
                 sys.stdout.write(' %s'%(self.cases[i].name))
             sys.stdout.write('\n')
-        return self.selected# }}}
+        return self.selected
 
-    def column(self, col):# {{{
+    def column(self, col):
         Nsel = len(self.selected)
         #data = np.zeros((Nsel))
         data = Nsel*[0]
@@ -167,9 +171,11 @@ class runmatrix:
             icase = self.selected[i]
             data[i] = getattr(self.cases[icase],col)
         try: return np.array(data)
-        except ValueError: return data# }}}
+        except ValueError: return data
+# }}}
 
-    def read_cases(self,casenames):# {{{
+    # read post-processed data # {{{
+    def read_cases(self,casenames):
 
         # initialize data
         Ncases = 0
@@ -252,7 +258,9 @@ class runmatrix:
         print 'Parameter ranges:'
         self.print_params('  ')# }}}
 
-    # handle mouse picks in plots # {{{
+    # plotting routines # {{{
+
+    # handle mouse picks in plots
     def onpick(self,event):
         line = event.artist
         xdata = line.get_xdata()
@@ -266,21 +274,22 @@ class runmatrix:
                    name, \
                    self.get_case(name).walltime \
                   )
-    # }}}
 
     def show(self): 
         print '\n( Left-click in plots to retrieve data point info )\n'
         plt.show()
+    # }}}
 
-    def errorPlot(self, # {{{
+    def errorPlot(self,
             ss,                                     # sea state, must be specified
             title='',                               # sets fig.suptitle
             xvar='nL', xvarname='', xscale='',      # param name | alternate name for axes title | 'linear'
-            constvar='', constval=0,                # constvar=['var1','var2',...], constval=[val1,val2,...]
+            constvar='', constval=0,                # constvar=['var1','var2',...], constval=[val1,(val2a,val2b,...),...]
             seriesvar='', seriesrange=(-9e9,9e9),   # corresponds to different plot style and legend entries
             timingcolor=False,                      # colors symbols based on log of walltime
             save='',                                # filename to output
             verbose=False):
+        # {{{
         if title: 
             print ''
             print 'MAKING NEW PLOT "%s"'%(title)
@@ -300,16 +309,21 @@ class runmatrix:
         xmin = 9e9; xmax = -9e9
 
         # select sea state and constant vars
-        cols = { 'T':ss['period'], 'H':ss['height'], 'verbose':verbose }
+        #cols = { 'T':ss['period'], 'H':ss['height'], 'verbose':verbose }
+        cols = { 'T':ss['period'], 'H':ss['height'] }
         if constvar: 
-            if isinstance(constvar, (str,unicode)):
-                assert( constval in self.params[constvar] )
-                cols[constvar] = constval
-            else: # multiple constant parameters specified
+            if isinstance(constvar, list): # multiple constant parameters specified
                 assert( len(constvar)==len(constval) )
                 for cvar,cval in zip(constvar,constval):
-                    assert( cval in self.params[cvar] )
+                    if isinstance(cval, tuple):
+                        for cv in cval:
+                            assert( cv in self.params[cvar] )
+                    else:
+                        assert( cval in self.params[cvar] )
                     cols[cvar] = cval
+            else:
+                assert( constval in self.params[constvar] )
+                cols[constvar] = constval
 
         if nseries > 1:
             #legendlabels = [ seriesvar+'='+str(series[i]) for i in range(nseries) ]
@@ -330,15 +344,15 @@ class runmatrix:
                 except KeyError:
                     legendlabels.append( seriesvar + '=' + str(series[i]) )
 
-                if verbose: print ' - SERIES',i,':',legendlabels[i]
+                if verbose: print ' - SERIES',i,':',legendlabels[-1]
                 cols[seriesvar] = series[i]
                 style = seriesStyles[i]
             else:
                 if verbose: print ' - no series specified'
                 style = defaultStyle
-            if verbose: print 'selecting',cols
-            selected = self.select(**cols)
-            if verbose: print '  selected',len(selected),'cases to plot'
+            #selected = self.select(**cols)
+            selected = self.select( **dict({'verbose':verbose},**cols) )
+            print '  series',i,':',len(selected),'cases selected',cols
 
             # get or calculate x
             if xvar in self.params:
