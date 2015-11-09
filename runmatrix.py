@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,7 +38,7 @@ paramLongNames = {
         'cfl': 'CFL'
         }
 seriesStyles = ['r^','gs','bo']
-defaultStyle = 'o'
+defaultStyle = 'ko'
 
 # define sea state inputs | pre-calculated values (wavelength/speed) | plot ranges
 #ss_ref = { 
@@ -146,7 +147,6 @@ class runmatrix:
         self.selected = range(len(self.cases))
         for name,value in kwargs.items():
             Ncases = len(self.selected)
-            if verbose: print '  selecting',name,'=',value,'from',Ncases,'cases'
             newselection = []
             for icase in self.selected:
                 if getattr(self.cases[icase],name) == value:
@@ -273,13 +273,13 @@ class runmatrix:
         plt.show()
 
     def errorPlot(self, # {{{
-            ss,
-            title='',
-            xvar='nL', xvarname='',
-            constvar='', constval=0,
-            seriesvar='cfl',
-            timingcolor=False,
-            save='',
+            ss,                                     # sea state, must be specified
+            title='',                               # sets fig.suptitle
+            xvar='nL', xvarname='', xscale='',      # param name | alternate name for axes title | 'linear'
+            constvar='', constval=0,                # constvar=['var1','var2',...], constval=[val1,val2,...]
+            seriesvar='', seriesrange=(-9e9,9e9),   # corresponds to different plot style and legend entries
+            timingcolor=False,                      # colors symbols based on log of walltime
+            save='',                                # filename to output
             verbose=False):
         if title: 
             print ''
@@ -299,6 +299,7 @@ class runmatrix:
             nseries = 1
         xmin = 9e9; xmax = -9e9
 
+        # select sea state and constant vars
         cols = { 'T':ss['period'], 'H':ss['height'], 'verbose':verbose }
         if constvar: 
             if isinstance(constvar, (str,unicode)):
@@ -313,17 +314,22 @@ class runmatrix:
         if nseries > 1:
             #legendlabels = [ seriesvar+'='+str(series[i]) for i in range(nseries) ]
             legendlabels = []
-            for i in range(nseries):
-                try:
-                    legendlabels.append( paramLongNames[seriesvar] + '=' + str(series[i]) )
-                except KeyError:
-                    legendlabels.append( seriesvar + '=' + str(series[i]) )
             legendlines = []
 
         # make plot
         for i in range(nseries):
+
             # filter data
             if nseries > 1: 
+                if series[i] < seriesrange[0] or series[i] > seriesrange[1]: 
+                    if verbose: print '- Skipping series',i,':',seriesvar+'='+str(series[i]),'out of range',seriesrange
+                    continue
+
+                try:
+                    legendlabels.append( paramLongNames[seriesvar] + '=' + str(series[i]) )
+                except KeyError:
+                    legendlabels.append( seriesvar + '=' + str(series[i]) )
+
                 if verbose: print ' - SERIES',i,':',legendlabels[i]
                 cols[seriesvar] = series[i]
                 style = seriesStyles[i]
@@ -382,13 +388,23 @@ class runmatrix:
                     ax1.loglog(   xi, err2, style, **styleargs )
                     ax2.semilogx( xi, err3, style, **styleargs )
                     ax3.loglog(   xi, err4, style, **styleargs )
+            if xscale:
+                ax0.set_xscale(xscale)
+                ax1.set_xscale(xscale)
+                ax2.set_xscale(xscale)
+                ax3.set_xscale(xscale)
 
-            if nseries > 1: legendlines.append( ax0.get_lines()[-1] )
+            if nseries > 1:
+                legendlines.append( ax0.get_lines()[-1] )
 
         # end of loop over series
 
         # set axes limits
-        ax0.set_xlim( calcLogRange([xmin,xmax]) )
+        if xscale=='linear':
+            xr = xmax-xmin
+            ax0.set_xlim( (xmin-0.2*xr, xmax+0.2*xr) )
+        else:
+            ax0.set_xlim( calcLogRange([xmin,xmax]) )
         if 'maxerr_range' in ss.keys():
             ax0.set_ylim( ss['maxerr_range'] )
             ax3.set_ylim( ss['maxerr_range'] )
@@ -420,7 +436,7 @@ class runmatrix:
         # hardcopy
         if save:
             fig.savefig(save)
-            print 'Wrote',save
+            print 'Saved',save
 
         # handle picks
         fig.canvas.mpl_connect('pick_event', self.onpick)# }}}

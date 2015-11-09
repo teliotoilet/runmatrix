@@ -7,7 +7,7 @@ showfigs = True # display interactive plots
 #
 # SETUP RUNMATRIX
 #
-mat.savefigs = True # save images
+mat.savefigs = False # save images
 
 # name of file in case directory containing postprocessed data, generated with post.sh and post_wave.py
 mat.postdata='post_summary.dat'
@@ -40,7 +40,7 @@ mat.paramLongNames = {
         'dampL': 'damping length'
         }
 mat.seriesStyles = ['r^','gs','bo']
-mat.defaultStyle = 'o'
+mat.defaultStyle = 'ko'
 
 #
 # define sea state inputs | pre-calculated values (wavelength/speed) | plot ranges
@@ -130,6 +130,27 @@ db.errorPlot(ss5,
         constvar=['halfL','dampL'], constval=[3,1.5],
         seriesvar='', timingcolor=True,
         save='1_resolution_study/SS5_dt_err.png')
+
+
+# comparison of domain parameters
+
+db.errorPlot(ss5,
+        title='Sea state 5: damping length error',
+        xvar='dampL',xscale='linear',
+        #constvar='halfL', constval=3,
+        constvar=['nL','halfL'], constval=[80,3],
+        #constvar=['nL','nH','halfL'], constval=[80,10,3],
+        seriesvar='cfl',seriesrange=(0,0.25),
+        save='2_domain_study/SS5_dampL_err.png')
+
+db.errorPlot(ss5,
+        title='Sea state 5: domain length error',
+        xvar='halfL',xscale='linear',
+        #constvar='dampL', constval=1.5,
+        constvar=['nL','dampL'], constval=[80,1.5],
+        #constvar=['nL','nH','dampL'], constval=[80,10,1.5],
+        seriesvar='cfl',seriesrange=(0,0.25),
+        save='2_domain_study/SS5_halfL_err.png')
 
 
 if showfigs: db.show()
