@@ -71,53 +71,61 @@ db = mat.runmatrix(casenames)
 
 # reference sea state
 
-db.errorPlot('Sea state 0: downwave spacing error', ss0,
+db.errorPlot(ss0, 
+        title='Sea state 0: downwave spacing error',
         xvar='nL',
         constvar='nH', constval=20,
         seriesvar='cfl',
         save='1_resolution_study/SS0_dx_err.png')
 
-db.errorPlot('Sea state 0: normal spacing error', ss0,
+db.errorPlot(ss0, 
+        title='Sea state 0: normal spacing error',
         xvar='nH',
         constvar='nL', constval=80,
         seriesvar='cfl',
         save='1_resolution_study/SS0_dz_err.png')
 
-db.errorPlot('Sea state 0: aspect ratio error', ss0,
+db.errorPlot(ss0, 
+        title='Sea state 0: aspect ratio error',
         #xvar='(${H}/${nH})/(${L}/${nL})', xvarname='aspect ratio, $\Delta z/\Delta x$',
         xvar='(${L}/${nL})/(${H}/${nH})', xvarname='aspect ratio, $\Delta x/\Delta z$',
         seriesvar='cfl',
         save='1_resolution_study/SS0_ar_err.png')
 
-db.errorPlot('Sea state 0: temporal error', ss0,
+db.errorPlot(ss0, 
+        title='Sea state 0: temporal error',
         xvar='${T}/(${L}/${nL}/${U}*${cfl})', xvarname='Timesteps per period, $T/\Delta t$',
         seriesvar='', timingcolor=True,
         save='1_resolution_study/SS0_dt_err.png')
 
 # nonlinear sea state
 
-db.errorPlot('Sea state 5: downwave spacing error', ss5,
+db.errorPlot(ss5,
+        title='Sea state 5: downwave spacing error',
         xvar='nL',
         #constvar='nH', constval=20,
         constvar=['nH','halfL','dampL'], constval=[20,3,1.5],
         seriesvar='cfl',
         save='1_resolution_study/SS5_dx_err.png')
 
-db.errorPlot('Sea state 5: normal spacing error', ss5,
+db.errorPlot(ss5,
+        title='Sea state 5: normal spacing error',
         xvar='nH',
         #constvar='nL', constval=80,
         constvar=['nL','halfL','dampL'], constval=[80,3,1.5],
         seriesvar='cfl',
         save='1_resolution_study/SS5_dz_err.png')
 
-db.errorPlot('Sea state 5: aspect ratio error', ss5,
+db.errorPlot(ss5,
+        title='Sea state 5: aspect ratio error',
         #xvar='(${H}/${nH})/(${L}/${nL})', xvarname='aspect ratio, $\Delta z/\Delta x$',
         xvar='(${L}/${nL})/(${H}/${nH})', xvarname='aspect ratio, $\Delta x/\Delta z$',
         constvar=['halfL','dampL'], constval=[3,1.5],
         seriesvar='cfl',
         save='1_resolution_study/SS5_ar_err.png')
 
-db.errorPlot('Sea state 5: temporal error', ss5,
+db.errorPlot(ss5,
+        title='Sea state 5: temporal error',
         xvar='${T}/(${L}/${nL}/${U}*${cfl})', xvarname='Timesteps per period, $T/\Delta t$',
         constvar=['halfL','dampL'], constval=[3,1.5],
         seriesvar='', timingcolor=True,

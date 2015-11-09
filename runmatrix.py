@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 #
 # DEFAULTS
 #
-savefigs = True # save images
+savefigs = False # save images
 
 # name of file in case directory containing postprocessed data, generated with post.sh and post_wave.py
 postdata='post_summary.dat'
@@ -269,12 +269,12 @@ class runmatrix:
     # }}}
 
     def show(self): 
-        print '\nLeft-click in plots to retrieve data point info'
+        print '\n( Left-click in plots to retrieve data point info )\n'
         plt.show()
 
     def errorPlot(self, # {{{
+            ss,
             title='',
-            ss=None,
             xvar='nL', xvarname='',
             constvar='', constval=0,
             seriesvar='cfl',
