@@ -17,11 +17,11 @@ for inputFile in $inputFiles; do
 
     if [ "$fileext" == "sh" ]; then
         #. params.sh
-        echo "Sourcing input file $inputfile"
+        echo "Sourcing input file $inputFile"
         . $inputFile
         continue
     else
-        echo "Processing cases from $inputfile"
+        echo "Processing cases from $inputFile"
         casefile=$inputFile
     fi
     workdir=`pwd`
@@ -47,7 +47,12 @@ for inputFile in $inputFiles; do
         if [ -f "DONE" ]; then
             if [ ! -f "post.out" ]; then $postcmd &> post.out; fi
             echo "$name : `grep 'initial offset' post.out`"
-            ncells=`grep 'cell count' log.$name | tail -n 1 | awk '{print $NF}'`
+            if [ -f "log.$name" ]; then 
+                logfile="log.$name"
+            else
+                logfile="$name.log"
+            fi
+            ncells=`grep 'cell count' $logfile | tail -n 1 | awk '{print $NF}'`
             walltime=`awk '{ nsec=nsec+$1 } END {print nsec}' walltime`
             maxerr=`grep 'max error' post.out | awk '{print $NF}'`
             cumerr=`grep 'cumulative error' post.out | awk '{print $NF}'`

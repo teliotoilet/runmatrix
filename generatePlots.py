@@ -142,8 +142,7 @@ db.errorPlot(ss5,
         #constvar=['nL','nH','halfL'], constval=[80,10,3],
         constvar=['nL','nH','halfL'], constval=[80,(10,20),3],
         seriesvar='cfl',seriesrange=(0,0.25),
-        save='2_domain_study/SS5_dampL_err.png',
-        verbose=True)
+        save='2_domain_study/SS5_dampL_err.png')
 
 db.errorPlot(ss5,
         title='Sea state 5: domain length error',
