@@ -25,6 +25,7 @@ public class setupSim extends StarMacro {
   int nH = <<nH>>;	        // cells per wave height
   double cfl = <<cfl>>;     // target CFL number
   double ds0 = <<ds0>>;     // max cell size
+  int nInner = <<inner>>;   // max inner iterations
   String workingDir = "<<curDir>>";
 
   public void execute() {
@@ -203,6 +204,14 @@ public class setupSim extends StarMacro {
     alphaScene.printAndWait(resolvePath(workingDir+"/init_alpha.png"), 1, 1280,1080);
 
     surfPlot.encode(resolvePath(workingDir+"/init_surf.png"), "png", 800, 600);
+
+    // 
+    // update solver settings
+    //
+    InnerIterationStoppingCriterion innerIters = 
+              ((InnerIterationStoppingCriterion) mysim.getSolverStoppingCriterionManager().getSolverStoppingCriterion("Maximum Inner Iterations"));
+
+    innerIters.setMaximumNumberInnerIterations(nInner);
 
     // 
     // save and start running

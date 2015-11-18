@@ -74,7 +74,6 @@ while eval "read -r $paramNames"; do
     # setup new case if the subdirectory doesn't exist
     #
     echo ''
-    #echo "$name : T=$T  H=$H  nL=$nL  nH=$nH  CFL=$cfl"
     echo `eval $paramInfo`
     if [ ! -d "$name" ]; then
         echo "Setting up new case $name"
@@ -104,12 +103,19 @@ while eval "read -r $paramNames"; do
     #
     # try to run job if we have enough procs
     #
+    licStr0=`$liccmd -f ccmpsuite | grep "Users of ccmpsuite"`
     licStr=`$liccmd -f hpcdomains | grep "Users of hpcdomains"`
+    echo $licStr0
     echo $licStr
+    navail0=`echo $licStr0 | awk '{print $6 - $11}'`
     navail=`echo $licStr | awk '{print $6 - $11}'`
-    while [ "$navail" -lt "$nprocs" ]; do
-        echo "-- only $navail out of $nprocs licenses available --"
-        sleep 15s
+    #while [ "$navail" -lt "$nprocs" ]; do
+    while [[ "$navail0" -lt 1  ||  "$navail" -lt "$nprocs" ]]; do
+        #echo "-- only $navail out of $nprocs hpcdomains licenses available --"
+        echo "--- $navail0 ccmpsuite and $navail hpcdomains licenses available, snoozing... ---"
+        sleep 10s
+        licStr0=`$liccmd -f ccmpsuite | grep "Users of ccmpsuite"`
+        navail0=`echo $licStr0 | awk '{print $6 - $11}'`
         licStr=`$liccmd -f hpcdomains | grep "Users of hpcdomains"`
         navail=`echo $licStr | awk '{print $6 - $11}'`
     done

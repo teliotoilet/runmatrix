@@ -4,8 +4,8 @@
 #PBS -l nodes=1:ppn=24
 #PBS -l feature=24core
 #####PBS -l walltime=12:00:00
-#PBS -q debug
-#####PBS -q short
+#####PBS -q debug
+#PBS -q short
 #PBS -j oe
 #PBS -m abe
 #PBS -M eliot.quon@nrel.gov
@@ -23,7 +23,8 @@
 # TODO: specify source file with correct defaults
 #       the 'paramNames' variable must match the columns in the .txt casefiles
 #export inputFile=domain_study_defaults.sh
-export inputFile=ext_domain_study_defaults.sh
+#export inputFile=ext_domain_study_defaults.sh
+export inputFile=inner_iter_study_defaults.sh
 . $PBS_O_WORKDIR/$inputFile
 
 # reset nodelist so we can set up concurrent runs
@@ -64,7 +65,8 @@ runcases()
 #runcases 2_domain_study_part2.txt 8
 #runcases 2_domain_study_part3.txt 8
 #runcases 2_domain_study.txt 8
-runcases 2_ext_domain_study.txt 8
+#runcases 2_ext_domain_study.txt 8
+runcases 2_inner_iter_study.txt 8
 
 
 

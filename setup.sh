@@ -4,7 +4,7 @@ set -e
 
 i=1
 for var in $paramNames; do
-    eval "$var=\$$i"
+    eval "$var=\${$i}"
     i=$((i+1))
 done
 
@@ -21,6 +21,7 @@ echo "  Input target CFL = $cfl"
 echo "  Input domain halflength = $halfL"
 echo "  Input damping length = $dampL"
 echo "  Input domain extra length = $extL"
+echo "  Input max inner iterations = $inner"
 
 L=`fenton1985.py $T $H lambda`
 echo "  Calculated wave length = $L"
@@ -44,6 +45,7 @@ sed -i "s/<<nL>>/$nL/" ${macroName}.java
 sed -i "s/<<nH>>/$nH/" ${macroName}.java
 sed -i "s/<<ds0>>/$dsmax/" ${macroName}.java
 sed -i "s/<<cfl>>/$cfl/" ${macroName}.java
+sed -i "s/<<inner>>/$inner/" ${macroName}.java
 
 mkdir $name
 mv -v ${macroName}.java $name/
