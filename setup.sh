@@ -20,6 +20,7 @@ echo "  Input cells/waveheight = $nH"
 echo "  Input target CFL = $cfl"
 echo "  Input domain halflength = $halfL"
 echo "  Input damping length = $dampL"
+echo "  Input domain extra length = $extL"
 
 L=`fenton1985.py $T $H lambda`
 echo "  Calculated wave length = $L"
@@ -37,6 +38,7 @@ sed -i "s/<<U>>/$U/" ${macroName}.java
 sed -i "s/<<d>>/$d/" ${macroName}.java
 sed -i "s/<<halfL>>/$halfL/" ${macroName}.java
 sed -i "s/<<dampL>>/$dampL/" ${macroName}.java
+sed -i "s/<<extL>>/$extL/" ${macroName}.java
 sed -i "s/<<width>>/$width/" ${macroName}.java
 sed -i "s/<<nL>>/$nL/" ${macroName}.java
 sed -i "s/<<nH>>/$nH/" ${macroName}.java

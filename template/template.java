@@ -12,15 +12,19 @@ import star.vis.*;
 
 public class setupSim extends StarMacro {
 
-  double H = <<H>>;	// wave height
-  double T = <<T>>;	// wave period
-  double L = <<L>>;	// wave length
-  double U = <<U>>;	// mean horizontal fluid speed
-  double d = <<d>>; 	// water depth
-  int nL = <<nL>>;	// cells per wave length
-  int nH = <<nH>>;	// cells per wave height
-  double cfl = <<cfl>>; // target CFL number
-  double ds0 = <<ds0>>; // max cell size
+  double H = <<H>>;	        // wave height
+  double T = <<T>>;	        // wave period
+  double L = <<L>>;	        // wave length
+  double U = <<U>>;	        // mean horizontal fluid speed
+  double d = <<d>>;         // water depth
+  double halfL = <<halfL>>; // domain half length normalized by wavelength
+  double dampL = <<dampL>>; // length of numerical beach, normalized by wavelength
+  double extL  = <<extL>>;  // how far to extend the domain past x=+halfL, to accomodate the numerical beach
+  double width = <<width>>; // domain width
+  int nL = <<nL>>;	        // cells per wave length
+  int nH = <<nH>>;	        // cells per wave height
+  double cfl = <<cfl>>;     // target CFL number
+  double ds0 = <<ds0>>;     // max cell size
   String workingDir = "<<curDir>>";
 
   public void execute() {
@@ -33,32 +37,61 @@ public class setupSim extends StarMacro {
     // setup Tools >> Field Functions
     //
 
-    UserFieldFunction userFieldFunction_0 = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waveH"));
-    userFieldFunction_0.setDefinition( String.valueOf(H) );
+    UserFieldFunction heightFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waveH"));
+    heightFunction.setDefinition( String.valueOf(H) );
 
-    UserFieldFunction userFieldFunction_1 = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waveL"));
-    userFieldFunction_1.setDefinition( String.valueOf(L) );
+    UserFieldFunction wavelengthFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waveL"));
+    wavelengthFunction.setDefinition( String.valueOf(L) );
 
-    UserFieldFunction userFieldFunction_2 = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waveT"));
-    userFieldFunction_2.setDefinition( String.valueOf(T) );
+    UserFieldFunction waveperiodFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waveT"));
+    waveperiodFunction.setDefinition( String.valueOf(T) );
 
-    UserFieldFunction userFieldFunction_3 = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waveU"));
-    userFieldFunction_3.setDefinition( String.valueOf(U) );
+    UserFieldFunction wavespeedFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waveU"));
+    wavespeedFunction.setDefinition( String.valueOf(U) );
 
-    UserFieldFunction userFieldFunction_4 = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("cellsPerL"));
-    userFieldFunction_4.setDefinition( String.valueOf(nL) );
+    UserFieldFunction cellsLengthFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("cellsPerL"));
+    cellsLengthFunction.setDefinition( String.valueOf(nL) );
 
-    UserFieldFunction userFieldFunction_5 = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("cellsPerH"));
-    userFieldFunction_5.setDefinition( String.valueOf(nH) );
+    UserFieldFunction cellsHeightFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("cellsPerH"));
+    cellsHeightFunction.setDefinition( String.valueOf(nH) );
 
-    UserFieldFunction userFieldFunction_6 = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waterDepth"));
-    userFieldFunction_6.setDefinition( String.valueOf(d) );
+    UserFieldFunction depthFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("waterDepth"));
+    depthFunction.setDefinition( String.valueOf(d) );
 
-    UserFieldFunction userFieldFunction_7 = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("dsMax"));
-    userFieldFunction_7.setDefinition( String.valueOf(ds0) );
+    UserFieldFunction dsmaxFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("dsMax"));
+    dsmaxFunction.setDefinition( String.valueOf(ds0) );
 
-    UserFieldFunction userFieldFunction_8 = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("targetCFL"));
-    userFieldFunction_7.setDefinition( String.valueOf(cfl) );
+    UserFieldFunction cflFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("targetCFL"));
+    cflFunction.setDefinition( String.valueOf(cfl) );
+
+    UserFieldFunction halfLFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("domainHalfL"));
+    halfLFunction.setDefinition( String.valueOf(halfL) );
+
+    UserFieldFunction dampLFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("beachL"));
+    dampLFunction.setDefinition( String.valueOf(dampL) );
+
+    UserFieldFunction extLFunction = ((UserFieldFunction) mysim.getFieldFunctionManager().getFunction("extendL"));
+    extLFunction.setDefinition( String.valueOf(extL) );
+
+    // 
+    // setup Geometry >> 3D-CAD Models >> Tank >> Design Parameters
+    //
+    double halfLength = halfL*L;
+    double halfHeight = d;
+    double extLength  = extL*L;
+
+    CadModel mycad = ((CadModel) mysim.get(SolidModelManager.class).getObject("Tank CAD"));
+
+    UserDesignParameter userDesignParameter_1 = ((UserDesignParameter) mycad.getDesignParameterManager().getObject("halfLength"));
+    userDesignParameter_1.getQuantity().setValue(halfLength);
+
+    UserDesignParameter userDesignParameter_2 = ((UserDesignParameter) mycad.getDesignParameterManager().getObject("halfHeight"));
+    userDesignParameter_2.getQuantity().setValue(halfHeight);
+
+    UserDesignParameter userDesignParameter_3 = ((UserDesignParameter) mycad.getDesignParameterManager().getObject("extendLength"));
+    userDesignParameter_3.getQuantity().setValue(extLength);
+
+    mycad.update();
 
     // 
     // setup Tools >> Volume Shapes
@@ -67,28 +100,28 @@ public class setupSim extends StarMacro {
     BrickVolumeShape brickVolumeShape_0 = 
       ((BrickVolumeShape) mysim.get(VolumeShapeManager.class).getObject("free surface refinement zone"));
 
-    brickVolumeShape_0.getCorner1().setCoordinate(meters, meters, meters, new DoubleVector(new double[] {-3*L, 0.0, -1.5*H}));
-    brickVolumeShape_0.getCorner2().setCoordinate(meters, meters, meters, new DoubleVector(new double[] { 3*L, 1.0,  1.5*H}));
+    brickVolumeShape_0.getCorner1().setCoordinate(meters, meters, meters, new DoubleVector(new double[] {-halfLength+extLength,   0.0, -1.5*H}));
+    brickVolumeShape_0.getCorner2().setCoordinate(meters, meters, meters, new DoubleVector(new double[] { halfLength+extLength, width,  1.5*H}));
 
     BrickVolumeShape brickVolumeShape_1 = 
       ((BrickVolumeShape) mysim.get(VolumeShapeManager.class).getObject("underwater refinement zone"));
 
-    brickVolumeShape_1.getCorner1().setCoordinate(meters, meters, meters, new DoubleVector(new double[] {-3*L, 0.0, -0.25*L}));
-    brickVolumeShape_1.getCorner2().setCoordinate(meters, meters, meters, new DoubleVector(new double[] { 3*L, 1.0, -1.5*H}));
+    brickVolumeShape_1.getCorner1().setCoordinate(meters, meters, meters, new DoubleVector(new double[] {-halfLength+extLength,   0.0, -0.25*L}));
+    brickVolumeShape_1.getCorner2().setCoordinate(meters, meters, meters, new DoubleVector(new double[] { halfLength+extLength, width,  -1.5*H}));
 
     // 
-    // setup Geometry >> 3D-CAD Models >> Tank >> Design Parameters
+    // set plot axes
     //
+    XYPlot surfPlot = ((XYPlot) mysim.getPlotManager().getPlot("Water surface"));
+    Axes surfAxes = surfPlot.getAxes();
 
-    CadModel mycad = ((CadModel) mysim.get(SolidModelManager.class).getObject("Tank CAD"));
+    Axis axis_0 = surfAxes.getXAxis();
+    axis_0.setMinimum(-halfLength);
+    axis_0.setMaximum( halfLength+extLength);
 
-    UserDesignParameter userDesignParameter_1 = ((UserDesignParameter) mycad.getDesignParameterManager().getObject("halfLength"));
-    userDesignParameter_1.getQuantity().setValue(3*L);
-
-    UserDesignParameter userDesignParameter_2 = ((UserDesignParameter) mycad.getDesignParameterManager().getObject("halfHeight"));
-    userDesignParameter_2.getQuantity().setValue(d);
-
-    mycad.update();
+    Axis axis_1 = surfAxes.getYAxis();
+    axis_1.setMinimum(-0.75*H);
+    axis_1.setMaximum( 1.25*H);
 
     // 
     // generate mesh and initialize solution
@@ -99,7 +132,7 @@ public class setupSim extends StarMacro {
 
     Solution soln = mysim.getSolution();
     soln.initializeSolution();
-    soln.initializeSolution(); // do it one more time just to be sure the VoF was properly initialized
+    soln.initializeSolution(); // do it one more time just to be sure the VoF was properly initialized (is this necessary?)
 
     // 
     // update representations
@@ -108,33 +141,68 @@ public class setupSim extends StarMacro {
     FvRepresentation fv = ((FvRepresentation) mysim.getRepresentationManager().getObject("Volume Mesh"));
 
     Scene meshScene = mysim.getSceneManager().getScene("Mesh Scene 1");
-    PartDisplayer partDisplayer_0 = ((PartDisplayer) meshScene.getDisplayerManager().getDisplayer("Mesh 1"));
-    partDisplayer_0.setRepresentation(fv);
+    PartDisplayer meshDisplayer = ((PartDisplayer) meshScene.getDisplayerManager().getDisplayer("Mesh 1"));
+    meshDisplayer.setRepresentation(fv);
 
-    Scene scalarScene = mysim.getSceneManager().getScene("Scalar Scene 1");
-    PartDisplayer partDisplayer_1 = ((PartDisplayer) scalarScene.getDisplayerManager().getDisplayer("Outline 1"));
-    partDisplayer_1.setRepresentation(fv);
-    ScalarDisplayer scalarDisplayer_0 = ((ScalarDisplayer) scalarScene.getDisplayerManager().getDisplayer("Scalar 1"));
-    scalarDisplayer_0.setRepresentation(fv);
+    Scene uScene = mysim.getSceneManager().getScene("u");
+    PartDisplayer uPartDisplayer = ((PartDisplayer) uScene.getDisplayerManager().getDisplayer("Outline 1"));
+    uPartDisplayer.setRepresentation(fv);
+    ScalarDisplayer uScalarDisplayer = ((ScalarDisplayer) uScene.getDisplayerManager().getDisplayer("Scalar 1"));
+    uScalarDisplayer.setRepresentation(fv);
+
+    Scene wScene = mysim.getSceneManager().getScene("w");
+    PartDisplayer wPartDisplayer = ((PartDisplayer) wScene.getDisplayerManager().getDisplayer("Outline 1"));
+    wPartDisplayer.setRepresentation(fv);
+    ScalarDisplayer wScalarDisplayer = ((ScalarDisplayer) wScene.getDisplayerManager().getDisplayer("Scalar 1"));
+    uScalarDisplayer.setRepresentation(fv);
+
+    Scene alphaScene = mysim.getSceneManager().getScene("alpha");
+    PartDisplayer alphaPartDisplayer = ((PartDisplayer) alphaScene.getDisplayerManager().getDisplayer("Outline 1"));
+    alphaPartDisplayer.setRepresentation(fv);
+    ScalarDisplayer alphaScalarDisplayer = ((ScalarDisplayer) alphaScene.getDisplayerManager().getDisplayer("Scalar 1"));
+    alphaScalarDisplayer.setRepresentation(fv);
 
     XYPlot waterPlot = ((XYPlot) mysim.getPlotManager().getPlot("Water surface"));
     waterPlot.setRepresentation(fv);
 
-    XyzInternalTable xyzInternalTable_0 = 
-      ((XyzInternalTable) mysim.getTableManager().getTable("XYZ Internal Table"));
-
+    XyzInternalTable xyzInternalTable_0 = ((XyzInternalTable) mysim.getTableManager().getTable("XYZ Internal Table"));
     xyzInternalTable_0.setRepresentation(fv);
+
+    // 
+    // setup views
+    //
+    // setInput(DoubleVector fp, DoubleVector pos, DoubleVector vu, double ps, int pm) 
+    // fp:  focal point, the point you're looking at
+    // pos: position of the observer
+    // vu:  view up
+    // ps:  coordinate system???
+    // pm:  projection mode (0=perspective, 1=parallel)
+//    DoubleVector fp  = new DoubleVector(new double[] {0.0, width/2, 0.0});
+//    DoubleVector pos = new DoubleVector(new double[] {0.0, -L, 0.0});
+//    DoubleVector vu  = new DoubleVector(new double[] {0.0, 0.0, 1.0});
+//    double ps = 2*halfLength;
+// for halfL=3, dampL=extL=1.5:
+    DoubleVector fp  = new DoubleVector(new double[] {61.54152236269913, 7.197319022585276, 0.7114626862739799});
+    DoubleVector pos = new DoubleVector(new double[] {61.54152236269913, -146.14878083093035, 0.7114626862739799});
+    DoubleVector vu  = new DoubleVector(new double[] {0.0, 0.0, 1.0});
+    double ps = 40.0313650113504;
+    CurrentView currentView_0 = meshScene.getCurrentView();
+    currentView_0.setInput(fp, pos, vu, ps, 0);
+    CurrentView currentView_1 = alphaScene.getCurrentView();
+    currentView_1.setInput(fp, pos, vu, ps, 0);
+    CurrentView currentView_2 = uScene.getCurrentView();
+    currentView_2.setInput(fp, pos, vu, ps, 0);
+    CurrentView currentView_3 = wScene.getCurrentView();
+    currentView_3.setInput(fp, pos, vu, ps, 0);
 
     // 
     // save some snapshots of the mesh and init solution
     //
-    CurrentView currentView_0 = meshScene.getCurrentView();
-    currentView_0.setInput(new DoubleVector(new double[] {0.0, 0.05000000074505806, 0.0}), new DoubleVector(new double[] {0.0, -64.5590286092214, 0.0}), new DoubleVector(new double[] {0.0, 0.0, 1.0}), 16.866340974990585, 0);
-    meshScene.printAndWait(resolvePath(workingDir+"/mesh.png"), 1, 1011, 853);
+    meshScene.printAndWait(resolvePath(workingDir+"/mesh.png"), 1, 1280,1080);
 
-    CurrentView currentView_1 = scalarScene.getCurrentView();
-    currentView_1.setInput(new DoubleVector(new double[] {0.0, 0.05000000074505806, 0.0}), new DoubleVector(new double[] {0.0, -64.55873979051132, 0.0}), new DoubleVector(new double[] {0.0, 0.0, 1.0}), 16.86626557817765, 0);
-    scalarScene.printAndWait(resolvePath(workingDir+"/init_alpha.png"), 1, 1011, 853);
+    alphaScene.printAndWait(resolvePath(workingDir+"/init_alpha.png"), 1, 1280,1080);
+
+    surfPlot.encode(resolvePath(workingDir+"/init_surf.png"), "png", 800, 600);
 
     // 
     // save and start running

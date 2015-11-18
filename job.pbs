@@ -3,8 +3,8 @@
 #PBS -N tank2D
 #PBS -l nodes=1:ppn=24
 #PBS -l feature=24core
-#PBS -l walltime=12:00:00
-#####PBS -q debug
+#####PBS -l walltime=12:00:00
+#PBS -q debug
 #####PBS -q short
 #PBS -j oe
 #PBS -m abe
@@ -20,12 +20,13 @@
 # 
 
 # source params.sh
-export inputFile=domain_study_defaults.sh
+# TODO: specify source file with correct defaults
+#       the 'paramNames' variable must match the columns in the .txt casefiles
+#export inputFile=domain_study_defaults.sh
+export inputFile=ext_domain_study_defaults.sh
 . $PBS_O_WORKDIR/$inputFile
 
 # reset nodelist so we can set up concurrent runs
-#rm -f nodelist*
-#cat $PBS_NODEFILE | sort > nodelist
 cat $PBS_NODEFILE | sort > nodelist.$PBS_JOBID
 
 # check the current licensing situation
@@ -41,15 +42,12 @@ procIds='' # list of process IDs for each call to runcases.sh
 runcases()
 {
     sweep=$((sweep+1))
-    #inputFile=$1
     casefile=$1
     nprocs=$2
     if [ -z "$nprocs" ]; then nprocs=$maxprocs; fi
     totalprocs=$((totalprocs+nprocs))
 
     echo "Performing sweep $sweep using $nprocs processors with parameters from $inputFile"
-    #inputFile=$inputFile nprocs=$nprocs sweep=$sweep sh test.sh
-    #inputFile=$inputFile nprocs=$nprocs sweep=$sweep ./runcases.sh &> ${PBS_JOBNAME}.o${PBS_JOBID}_part$sweep &
     if [ "$totalprocs" -eq "$maxprocs" -a "$sweep" -eq 1 ]; then #output to screen
         casefile=$casefile nprocs=$nprocs sweep=$sweep ./runcases.sh 2>&1 &
     else #split output
@@ -61,10 +59,12 @@ runcases()
 
 
 # TODO: Specify cases here
+# the number of cores to use should add up to <= total number of cores requested
 #runcases 2_domain_study_part1.txt 8
 #runcases 2_domain_study_part2.txt 8
 #runcases 2_domain_study_part3.txt 8
-runcases 2_domain_study.txt 8
+#runcases 2_domain_study.txt 8
+runcases 2_ext_domain_study.txt 8
 
 
 
