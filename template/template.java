@@ -101,13 +101,13 @@ public class setupSim extends StarMacro {
     BrickVolumeShape brickVolumeShape_0 = 
       ((BrickVolumeShape) mysim.get(VolumeShapeManager.class).getObject("free surface refinement zone"));
 
-    brickVolumeShape_0.getCorner1().setCoordinate(meters, meters, meters, new DoubleVector(new double[] {-halfLength+extLength,   0.0, -1.5*H}));
+    brickVolumeShape_0.getCorner1().setCoordinate(meters, meters, meters, new DoubleVector(new double[] {-halfLength          ,   0.0, -1.5*H}));
     brickVolumeShape_0.getCorner2().setCoordinate(meters, meters, meters, new DoubleVector(new double[] { halfLength+extLength, width,  1.5*H}));
 
     BrickVolumeShape brickVolumeShape_1 = 
       ((BrickVolumeShape) mysim.get(VolumeShapeManager.class).getObject("underwater refinement zone"));
 
-    brickVolumeShape_1.getCorner1().setCoordinate(meters, meters, meters, new DoubleVector(new double[] {-halfLength+extLength,   0.0, -0.25*L}));
+    brickVolumeShape_1.getCorner1().setCoordinate(meters, meters, meters, new DoubleVector(new double[] {-halfLength          ,   0.0, -0.25*L}));
     brickVolumeShape_1.getCorner2().setCoordinate(meters, meters, meters, new DoubleVector(new double[] { halfLength+extLength, width,  -1.5*H}));
 
     // 
@@ -166,8 +166,8 @@ public class setupSim extends StarMacro {
     XYPlot waterPlot = ((XYPlot) mysim.getPlotManager().getPlot("Water surface"));
     waterPlot.setRepresentation(fv);
 
-    XyzInternalTable xyzInternalTable_0 = ((XyzInternalTable) mysim.getTableManager().getTable("XYZ Internal Table"));
-    xyzInternalTable_0.setRepresentation(fv);
+    XyzInternalTable alphaTable = ((XyzInternalTable) mysim.getTableManager().getTable("XYZ Internal Table"));
+    alphaTable.setRepresentation(fv);
 
     // 
     // setup views
@@ -176,25 +176,47 @@ public class setupSim extends StarMacro {
     // fp:  focal point, the point you're looking at
     // pos: position of the observer
     // vu:  view up
-    // ps:  coordinate system???
+    // ps:  ???
     // pm:  projection mode (0=perspective, 1=parallel)
-//    DoubleVector fp  = new DoubleVector(new double[] {0.0, width/2, 0.0});
-//    DoubleVector pos = new DoubleVector(new double[] {0.0, -L, 0.0});
-//    DoubleVector vu  = new DoubleVector(new double[] {0.0, 0.0, 1.0});
-//    double ps = 2*halfLength;
-// for halfL=3, dampL=extL=1.5:
-    DoubleVector fp  = new DoubleVector(new double[] {61.54152236269913, 7.197319022585276, 0.7114626862739799});
-    DoubleVector pos = new DoubleVector(new double[] {61.54152236269913, -146.14878083093035, 0.7114626862739799});
+    DoubleVector fp  = new DoubleVector(new double[] {extLength/2, width/2, 0.0});
+    DoubleVector pos = new DoubleVector(new double[] {extLength/2, -1.2*(2*halfLength+extLength), 0.0}); // step back an extra 20% of the domain length
     DoubleVector vu  = new DoubleVector(new double[] {0.0, 0.0, 1.0});
-    double ps = 40.0313650113504;
+
     CurrentView currentView_0 = meshScene.getCurrentView();
-    currentView_0.setInput(fp, pos, vu, ps, 0);
+    //currentView_0.setInput(fp, pos, vu, ps, 0);
+    Coordinate meshScene_coordinate_2 = currentView_0.getViewUpCoordinate();
+    meshScene_coordinate_2.setCoordinate(meters, meters, meters, vu);
+    Coordinate meshScene_coordinate_1 = currentView_0.getPositionCoordinate();
+    meshScene_coordinate_1.setCoordinate(meters, meters, meters, pos);
+    Coordinate meshScene_coordinate_0 = currentView_0.getFocalPointCoordinate();
+    meshScene_coordinate_0.setCoordinate(meters, meters, meters, fp);
+
     CurrentView currentView_1 = alphaScene.getCurrentView();
-    currentView_1.setInput(fp, pos, vu, ps, 0);
+    //currentView_1.setInput(fp, pos, vu, ps, 0);
+    Coordinate alphaScene_coordinate_2 = currentView_1.getViewUpCoordinate();
+    alphaScene_coordinate_2.setCoordinate(meters, meters, meters, vu);
+    Coordinate alphaScene_coordinate_1 = currentView_1.getPositionCoordinate();
+    alphaScene_coordinate_1.setCoordinate(meters, meters, meters, pos);
+    Coordinate alphaScene_coordinate_0 = currentView_1.getFocalPointCoordinate();
+    alphaScene_coordinate_0.setCoordinate(meters, meters, meters, fp);
+
     CurrentView currentView_2 = uScene.getCurrentView();
-    currentView_2.setInput(fp, pos, vu, ps, 0);
+    //currentView_2.setInput(fp, pos, vu, ps, 0);
+    Coordinate uScene_coordinate_2 = currentView_2.getViewUpCoordinate();
+    uScene_coordinate_2.setCoordinate(meters, meters, meters, vu);
+    Coordinate uScene_coordinate_1 = currentView_2.getPositionCoordinate();
+    uScene_coordinate_1.setCoordinate(meters, meters, meters, pos);
+    Coordinate uScene_coordinate_0 = currentView_2.getFocalPointCoordinate();
+    uScene_coordinate_0.setCoordinate(meters, meters, meters, fp);
+
     CurrentView currentView_3 = wScene.getCurrentView();
-    currentView_3.setInput(fp, pos, vu, ps, 0);
+    //currentView_3.setInput(fp, pos, vu, ps, 0);
+    Coordinate wScene_coordinate_2 = currentView_3.getViewUpCoordinate();
+    wScene_coordinate_2.setCoordinate(meters, meters, meters, vu);
+    Coordinate wScene_coordinate_1 = currentView_3.getPositionCoordinate();
+    wScene_coordinate_1.setCoordinate(meters, meters, meters, pos);
+    Coordinate wScene_coordinate_0 = currentView_3.getFocalPointCoordinate();
+    wScene_coordinate_0.setCoordinate(meters, meters, meters, fp);
 
     // 
     // save some snapshots of the mesh and init solution
@@ -203,7 +225,12 @@ public class setupSim extends StarMacro {
 
     alphaScene.printAndWait(resolvePath(workingDir+"/init_alpha.png"), 1, 1280,1080);
 
-    surfPlot.encode(resolvePath(workingDir+"/init_surf.png"), "png", 800, 600);
+    //surfPlot.encode(resolvePath(workingDir+"/init_surf.png"), "png", 800, 600);
+    Scene surfPlotScene = mysim.getSceneManager().getScene("Water surface plot");
+    surfPlotScene.printAndWait(resolvePath(workingDir+"/init_surfPlot.png"), 1, 800,600);
+
+    alphaTable.extract();
+    alphaTable.export(resolvePath(workingDir+"/waterSurface/XYZ_Internal_Table_table_0.csv"), ",");   
 
     // 
     // update solver settings
