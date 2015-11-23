@@ -22,7 +22,7 @@ width=1.0
 #   THESE MUST MATCH THE COLUMNS IN THE .txt CASEFILE(S)
 
 #   columns: name wave_period wave_height cells_per_wavelength    cells_per_waveheight    target_CFL
-#paramNames='name T H nL nH cfl'
+paramNames='name T H nL nH cfl'
 
 #   columns: name wave_period wave_height cells_per_wavelength    cells_per_waveheight    target_CFL    domain_length  beach_length
 #paramNames='name T H nL nH cfl halfL dampL extL'

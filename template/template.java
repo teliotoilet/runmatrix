@@ -229,6 +229,7 @@ public class setupSim extends StarMacro {
     Scene surfPlotScene = mysim.getSceneManager().getScene("Water surface plot");
     surfPlotScene.printAndWait(resolvePath(workingDir+"/init_surfPlot.png"), 1, 800,600);
 
+    // note: the waterSurface MUST exist, otherwise macro quits!!!
     alphaTable.extract();
     alphaTable.export(resolvePath(workingDir+"/waterSurface/XYZ_Internal_Table_table_0.csv"), ",");   
 

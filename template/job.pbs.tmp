@@ -38,6 +38,7 @@ else
     #clean start
     date > RUNNING
     echo "jobid: $PBS_JOBID" >> RUNNING
+    mkdir -p waterSurface # for initial XYZ table dump
     $star -rsh "ssh -oStrictHostKeyChecking=no" -machinefile $nodefile -np $nprocs \
         -batch setupSim.java ${simName}.sim > $logfile
 fi

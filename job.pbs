@@ -3,9 +3,9 @@
 #PBS -N tank2D
 #PBS -l nodes=1:ppn=24
 #PBS -l feature=24core
-#####PBS -l walltime=12:00:00
-#PBS -q debug
-#####PBS -q short
+#####PBS -l walltime=16:00:00
+#####PBS -q debug
+#PBS -q short
 #PBS -j oe
 #PBS -m abe
 #PBS -M eliot.quon@nrel.gov
@@ -23,8 +23,8 @@
 # TODO: specify source file with correct defaults
 #       the 'paramNames' variable must match the columns in the .txt casefiles
 #export inputFile=domain_study_defaults.sh
-export inputFile=ext_domain_study.sh
-#export inputFile=inner_iter_study.sh
+#export inputFile=ext_domain_study.sh
+export inputFile=inner_iter_study.sh
 . $PBS_O_WORKDIR/$inputFile
 
 # reset nodelist so we can set up concurrent runs
@@ -49,7 +49,7 @@ runcases()
     if [ -z "$nprocs" ]; then nprocs=$maxprocs; fi
     totalprocs=$((totalprocs+nprocs))
 
-    echo "Performing sweep $sweep using $nprocs processors with parameters from $inputFile"
+    echo "Performing sweep #$sweep using $nprocs processors with parameters from $inputFile"
     if [ "$totalprocs" -eq "$maxprocs" -a "$sweep" -eq 1 ]; then #output to screen
         casefile=$casefile nprocs=$nprocs sweep=$sweep ./runcases.sh 2>&1 &
     else #split output
@@ -65,8 +65,8 @@ runcases()
 #runcases 2_domain_study_part2.txt 8
 #runcases 2_domain_study_part3.txt 8
 #runcases 2_domain_study.txt 8
-runcases 2_ext_domain_study.txt 8
-#runcases 2_inner_iter_study.txt 8
+#runcases 2_ext_domain_study.txt 8
+runcases 2_inner_iter_study.txt 8
 
 
 
