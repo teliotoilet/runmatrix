@@ -42,8 +42,11 @@ ss5 = { 'period': 5.66, 'height': 1.20,
 # make plots
 #
 
-if len(sys.argv) <= 1: sys.exit('specify name of studies (omit .txt extension)')
-casenames = sys.argv[1:]
+if len(sys.argv) <= 1:
+    casenames = ['2_ext_domain_study','2_inner_iter_study']
+    print 'Using default case directories',casenames
+else:
+    casenames = sys.argv[1:]
 
 db = mat.runmatrix(casenames)
 

@@ -14,9 +14,10 @@ postdata='post_summary.dat'
 
 # var types
 dbl = np.float64 # double precision
-uint = np.uint16
+uint = np.uint32
 
 # set parameters and defaults
+# TODO: define new parameters here
 # *** order in paramNames is important, should match the .txt file ***
 paramNames = ['name','T','H','nL','nH','cfl']
 paramTypes = {
@@ -48,6 +49,18 @@ paramLongNames = {
         'dampL': 'damping length',
         'extL': 'extended length',
         'nInner': 'inner iterations'
+        }
+
+# TODO: define new outputs here
+outputNames = ['maxerr','cumerr','lamerr','adjerr','ncells','walltime']
+outputTypes = {
+        'maxerr': dbl,
+        'cumerr': dbl,
+        'lamerr': dbl,
+        'adjerr': dbl,
+        'ncells': uint,
+        'walltime': dbl,
+        'ffterr': dbl
         }
 
 seriesStyles = ['r^','gs','bo']
@@ -99,6 +112,7 @@ def calcLogRange(vals):
 # define structure to hold case data# {{{
 class case:
     # TODO: dynamically set member variables
+    # TODO: but for now, add new parameters/outputs here
     def __init__(self, name, \
             T=-1, H=-1, \
             nL=-1, nH=-1, \
@@ -127,8 +141,10 @@ class case:
         self.ffterr = ffterr
         self.ncells = ncells
         self.walltime = walltime
+        self.ffterr = ffterr
 # }}}
 
+#===============================================================================
 class runmatrix:
 
     # basic routines# {{{
@@ -206,71 +222,91 @@ class runmatrix:
             Ncases += n
         print 'Building database from',Ncases,'total cases'
 
-        data = dict()
-        for param in paramNames:
-            if param=='name':
-                data['name'] = [ '' for i in range(Ncases) ]
-                continue
-            try: default = paramDefaults[param]
-            except KeyError: default = -1
-            data[param] = default * np.ones((Ncases), dtype=paramTypes[param])
-        maxerr = np.zeros((Ncases))
-        cumerr = np.zeros((Ncases))
-        lamerr = np.zeros((Ncases))
-        adjerr = np.zeros((Ncases))
-        ncells = np.zeros((Ncases),dtype=np.uint32)
-        walltime = np.zeros((Ncases))
+#        data = dict()
+#        for param in paramNames:
+#            if param=='name':
+#                data['name'] = [ '' for i in range(Ncases) ]
+#                continue
+#            try: default = paramDefaults[param]
+#            except KeyError: default = -1
+#            data[param] = default * np.ones((Ncases), dtype=paramTypes[param])
+#
+#        for output,typ in outputNames,outputTypes:
+#            data[output] = np.zeros((Ncases), dtype=typ)
 
         # read data
-        icase = 0 # initial case offset
+#        icase = 0 # initial case offset
+#        casedata = dict()
         for casename in casenames:
 
             fnameIn = casename + '.txt'
             fnameOut = casename + os.sep + postdata
 
+#            print 'Reading case inputs from',fnameIn
+#            iin = -1
+#            with open(fnameIn,'r') as fin:
+#                for line in fin:
+#                    line = line.split()
+#                    iin += 1
+#                    for ival in range(len(paramNames)):
+#                        param = paramNames[ival]
+#                        typ = paramTypes[param]
+#                        try:
+#                            data[param][icase+iin] = typ(line[ival])
+#                        except IndexError: break
+#                    
+#            print 'Reading postprocessed data from',fnameOut
+#            iout = -1
+#            with open(fnameOut,'r') as fout:
+#                for line in fout:
+#                    line = line.split()
+#                    iout += 1
+#                    assert( line[0] == data['name'][icase+iout] )
+#                    maxerr[icase+iout] = float(line[1])
+#                    cumerr[icase+iout] = float(line[2])
+#                    lamerr[icase+iout] = float(line[3])
+#                    adjerr[icase+iout] = float(line[4])
+#                    ncells[icase+iout] = int(line[5])
+#                    walltime[icase+iout] = float(line[6])
+                    
             print 'Reading case inputs from',fnameIn
-            iin = -1
-            with open(fnameIn,'r') as fin:
-                for line in fin:
-                    line = line.split()
-                    iin += 1
-                    for ival in range(len(paramNames)):
-                        param = paramNames[ival]
-                        typ = paramTypes[param]
-                        try:
-                            data[param][icase+iin] = typ(line[ival])
-                        except IndexError: break
-                    
             print 'Reading postprocessed data from',fnameOut
-            iout = -1
-            with open(fnameOut,'r') as fout:
-                for line in fout:
-                    line = line.split()
-                    iout += 1
-                    assert( line[0] == data['name'][icase+iout] )
-                    maxerr[icase+iout] = float(line[1])
-                    cumerr[icase+iout] = float(line[2])
-                    lamerr[icase+iout] = float(line[3])
-                    adjerr[icase+iout] = float(line[4])
-                    ncells[icase+iout] = int(line[5])
-                    walltime[icase+iout] = float(line[6])
-                    
-            assert(iin==iout)
-            icase = iin + 1
+            iread = -1
+            with open(fnameIn,'r') as fin, open(fnameOut,'r') as fout:
 
-        # fill database
-        # TODO: move this to inside the read loop so we don't need extra memory
-        for i in range(Ncases):
-            casedata = { \
-                'maxerr': maxerr[i], \
-                'cumerr': cumerr[i], \
-                'lamerr': lamerr[i], \
-                'adjerr': adjerr[i], \
-                'ncells': ncells[i], \
-                'walltime': walltime[i] \
-            }
-            for param in paramNames:
-                casedata[param] = data[param][i]
+                for line1,line2 in zip(fin,fout):
+                    iread += 1
+                    line1 = line1.split()
+                    line2 = line2.split()
+                    assert( line1[0] == line2[0] ) # check for name match
+
+#                    casedata = dict() # clear the case data
+                    casedata = paramDefaults.copy() # set to default
+                    for val,par in zip(line1,paramNames):
+                        casedata[par] = paramTypes[par](val)
+                    for val,out in zip(line2[1:],outputNames):
+                        casedata[out] = outputTypes[out](val)
+
+                    self.add_case( **casedata )
+
+            print 'paramDefaults at the end',paramDefaults
+
+#            assert(iin==iout)
+#            icase = iin + 1
+
+#        # fill database
+#        # TODO: move this to inside the read loop so we don't need extra memory
+#        for i in range(Ncases):
+#            casedata = { \
+#                'maxerr': maxerr[i], \
+#                'cumerr': cumerr[i], \
+#                'lamerr': lamerr[i], \
+#                'adjerr': adjerr[i], \
+#                'ncells': ncells[i], \
+#                'walltime': walltime[i] \
+#            }
+#            for param in paramNames:
+#                casedata[param] = data[param][i]
 
             self.add_case( **casedata )
 
@@ -311,7 +347,7 @@ class runmatrix:
         # {{{
         if title: 
             print ''
-            print 'MAKING NEW PLOT "%s"'%(title)
+            print 'GENERATING NEW PLOT "%s"'%(title)
 
         if not savefigs: save='' # allow global override
         
