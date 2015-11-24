@@ -11,34 +11,12 @@ mat.savefigs = True # save images
 
 # name of file in case directory containing postprocessed data, generated with post.sh and post_wave.py
 mat.postdata='post_summary.dat'
+#mat.postdata='post_summary2.dat' #including integrated fft error
 
 # set parameters and defaults
 # *** order in paramNames is important, should match the .txt file ***
-mat.paramNames = ['name','T','H','nL','nH','cfl','halfL','dampL']
-mat.paramTypes = {
-        'name': str,
-        'T': mat.dbl,
-        'H': mat.dbl,
-        'nL': mat.uint,
-        'nH': mat.uint,
-        'cfl': mat.dbl,
-        'halfL': mat.dbl,
-        'dampL': mat.dbl
-        }
-mat.paramDefaults = {
-        'nL': 80,
-        'nH': 20,
-        'cfl': 0.5,
-        'halfL': 3.0,
-        'dampL': 1.5
-        }
-mat.paramLongNames = {
-        'nL': 'cells per wavelength',
-        'nH': 'cells per waveheight',
-        'cfl': 'CFL',
-        'halfL': 'domain halflength',
-        'dampL': 'damping length'
-        }
+mat.paramNames = ['name','T','H','nL','nH','cfl','halfL','dampL','extL','nInner']
+
 mat.seriesStyles = ['r^','gs','bo']
 mat.defaultStyle = 'ko'
 
@@ -64,8 +42,10 @@ ss5 = { 'period': 5.66, 'height': 1.20,
 # make plots
 #
 
-if len(sys.argv) <= 1: sys.exit('specify name of studies (omit .txt extension)')
-casenames = sys.argv[1:]
+if len(sys.argv) <= 1: #sys.exit('specify name of studies (omit .txt extension)')
+    casenames = ['1_resolution_study','2_domain_study']
+else:
+    casenames = sys.argv[1:]
 
 db = mat.runmatrix(casenames)
 
@@ -104,7 +84,8 @@ db.errorPlot(ss5,
         title='Sea state 5: downwave spacing error',
         xvar='nL',
         #constvar='nH', constval=20,
-        constvar=['nH','halfL','dampL'], constval=[20,3,1.5],
+        #constvar=['nH','halfL','dampL'], constval=[20,3,1.5],
+        constvar=['nH','halfL','dampL','extL'], constval=[20,3,1.5,-1],
         seriesvar='cfl',
         save='1_resolution_study/SS5_dx_err.png')
 
@@ -112,7 +93,8 @@ db.errorPlot(ss5,
         title='Sea state 5: normal spacing error',
         xvar='nH',
         #constvar='nL', constval=80,
-        constvar=['nL','halfL','dampL'], constval=[80,3,1.5],
+        #constvar=['nL','halfL','dampL'], constval=[80,3,1.5],
+        constvar=['nL','halfL','dampL','extL'], constval=[80,3,1.5,-1],
         seriesvar='cfl',
         save='1_resolution_study/SS5_dz_err.png')
 
@@ -120,39 +102,43 @@ db.errorPlot(ss5,
         title='Sea state 5: aspect ratio error',
         #xvar='(${H}/${nH})/(${L}/${nL})', xvarname='aspect ratio, $\Delta z/\Delta x$',
         xvar='(${L}/${nL})/(${H}/${nH})', xvarname='aspect ratio, $\Delta x/\Delta z$',
-        constvar=['halfL','dampL'], constval=[3,1.5],
+        #constvar=['halfL','dampL'], constval=[3,1.5],
+        constvar=['halfL','dampL','extL'], constval=[3,1.5,-1],
         seriesvar='cfl',
         save='1_resolution_study/SS5_ar_err.png')
 
 db.errorPlot(ss5,
         title='Sea state 5: temporal error',
         xvar='${T}/(${L}/${nL}/${U}*${cfl})', xvarname='Timesteps per period, $T/\Delta t$',
-        constvar=['halfL','dampL'], constval=[3,1.5],
+        #constvar=['halfL','dampL'], constval=[3,1.5],
+        constvar=['halfL','dampL','extL'], constval=[3,1.5,-1],
         seriesvar='', timingcolor=True,
         save='1_resolution_study/SS5_dt_err.png')
 
 
 # comparison of domain parameters
-
-db.errorPlot(ss5,
-        title='Sea state 5: damping length error',
-        xvar='dampL',xscale='linear',
-        #constvar='halfL', constval=3,
-        #constvar=['nL','halfL'], constval=[80,3],
-        #constvar=['nL','nH','halfL'], constval=[80,10,3],
-        constvar=['nL','nH','halfL'], constval=[80,(10,20),3],
-        seriesvar='cfl',seriesrange=(0,0.25),
-        save='2_domain_study/SS5_dampL_err.png')
-
-db.errorPlot(ss5,
-        title='Sea state 5: domain length error',
-        xvar='halfL',xscale='linear',
-        #constvar='dampL', constval=1.5,
-        #constvar=['nL','dampL'], constval=[80,1.5],
-        #constvar=['nL','nH','dampL'], constval=[80,10,1.5],
-        constvar=['nL','nH','dampL'], constval=[80,(10,20),1.5],
-        seriesvar='cfl',seriesrange=(0,0.25),
-        save='2_domain_study/SS5_halfL_err.png')
+#
+#db.errorPlot(ss5,
+#        title='Sea state 5: damping length error',
+#        xvar='dampL',xscale='linear',
+#        #constvar='halfL', constval=3,
+#        #constvar=['nL','halfL'], constval=[80,3],
+#        #constvar=['nL','nH','halfL'], constval=[80,10,3],
+#        #constvar=['nL','nH','halfL'], constval=[80,(10,20),3],
+#        constvar=['nL','nH','halfL','extL'], constval=[80,(10,20),3,-1],
+#        seriesvar='cfl',seriesrange=(0,0.25),
+#        save='2_domain_study/SS5_dampL_err.png')
+#
+#db.errorPlot(ss5,
+#        title='Sea state 5: domain length error',
+#        xvar='halfL',xscale='linear',
+#        #constvar='dampL', constval=1.5,
+#        #constvar=['nL','dampL'], constval=[80,1.5],
+#        #constvar=['nL','nH','dampL'], constval=[80,10,1.5],
+#        #constvar=['nL','nH','dampL'], constval=[80,(10,20),1.5],
+#        constvar=['nL','nH','dampL','extL'], constval=[80,(10,20),1.5,-1],
+#        seriesvar='cfl',seriesrange=(0,0.25),
+#        save='2_domain_study/SS5_halfL_err.png')
 
 
 if showfigs: db.show()

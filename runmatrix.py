@@ -25,18 +25,31 @@ paramTypes = {
         'H': dbl,
         'nL': uint,
         'nH': uint,
-        'cfl': dbl
+        'cfl': dbl,
+        'halfL': dbl,
+        'dampL': dbl,
+        'extL': dbl,
+        'nInner': uint
         }
 paramDefaults = {
         'nL': 80,
         'nH': 20,
-        'cfl': 0.5
+        'cfl': 0.5,
+        'halfL': 3.0,
+        'dampL': 1.5,
+        'extL': -1,
+        'nInner': 5
         }
 paramLongNames = {
         'nL': 'cells per wavelength',
         'nH': 'cells per waveheight',
-        'cfl': 'CFL'
+        'cfl': 'CFL',
+        'halfL': 'domain halflength',
+        'dampL': 'damping length',
+        'extL': 'extended length',
+        'nInner': 'inner iterations'
         }
+
 seriesStyles = ['r^','gs','bo']
 defaultStyle = 'ko'
 
@@ -91,8 +104,11 @@ class case:
             nL=-1, nH=-1, \
             cfl=-1, \
             halfL=-1, dampL=-1, \
+            extL=-1, \
+            nInner=-1, \
             maxerr=-1, cumerr=-1, \
             lamerr=999, adjerr=-1, \
+            ffterr=-1, \
             ncells=-1, walltime=-1):
         self.name = name
         self.T = T
@@ -102,10 +118,13 @@ class case:
         self.cfl = cfl
         self.halfL = halfL
         self.dampL = dampL
+        self.extL = extL
+        self.nInner = nInner
         self.maxerr = maxerr
         self.cumerr = cumerr
         self.lamerr = lamerr
         self.adjerr = adjerr
+        self.ffterr = ffterr
         self.ncells = ncells
         self.walltime = walltime
 # }}}
@@ -222,7 +241,7 @@ class runmatrix:
                             data[param][icase+iin] = typ(line[ival])
                         except IndexError: break
                     
-            print 'Reading postdata from',fnameOut
+            print 'Reading postprocessed data from',fnameOut
             iout = -1
             with open(fnameOut,'r') as fout:
                 for line in fout:
