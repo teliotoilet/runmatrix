@@ -16,6 +16,7 @@ mat.postdata='post_summary2.dat' #including integrated fft error
 # set parameters and defaults
 # *** order in paramNames is important, should match the .txt file ***
 mat.paramNames = ['name','T','H','nL','nH','cfl','halfL','dampL','extL','nInner']
+mat.outputNames = ['maxerr','cumerr','lamerr','adjerr','ncells','walltime','ffterr']
 
 mat.seriesStyles = ['r^','gs','bo']
 mat.defaultStyle = 'ko'
@@ -52,12 +53,35 @@ db = mat.runmatrix(casenames)
 
 # comparison of domain parameters
 
-db.errorPlot(ss5,
-        title='Sea state 5: damping length error',
+#db.errorPlot(ss5,
+#        title='Sea state 5: damping length error',
+#        xvar='dampL',xscale='linear',
+#        constvar=['halfL','extL'], constval=[3,(1.5,1.75,2)],
+#        seriesvar='cfl',seriesrange=(0,0.25),
+#        save='2_ext_domain_study/SS5_ext_dampL_err.png')
+
+#db.errorFftPlot(ss5,
+#        title='Sea state 5: damping length error',
+#        xvar='dampL',xscale='linear',
+#        constvar=['halfL','nInner'], constval=[3,5],
+#        seriesvar='cfl',seriesrange=(0,0.25),
+#        save='2_ext_domain_study/SS5_ext_dampL_err_fft.png',
+#        verbose=True)
+db.errorFftPlot(ss5,
+        title='Sea state 5: damping length error (extended domain)',
         xvar='dampL',xscale='linear',
-        constvar=['halfL','extL'], constval=[3,(1.5,1.75,2)],
+        constvar=['halfL','nInner','nL','nH'], constval=[3,5,80,10],
         seriesvar='cfl',seriesrange=(0,0.25),
-        save='2_ext_domain_study/SS5_ext_dampL_err.png')
+        save='2_ext_domain_study/SS5_ext_dampL_err_fft.png',
+        verbose=True)
+
+db.errorFftPlot(ss5,
+        title='Sea state 5: inner iteration error (extend domain)',
+        xvar='nInner',xscale='linear',
+        constvar=['halfL','dampL','nL','nH'], constval=[3,1.5,80,10],
+        seriesvar='cfl',seriesrange=(0,0.25),
+        save='2_ext_domain_study/SS5_ext_nInner_err_fft.png',
+        verbose=True)
 
 if showfigs: db.show()
 

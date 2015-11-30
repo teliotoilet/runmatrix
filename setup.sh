@@ -1,5 +1,8 @@
 #!/bin/bash
 set -e
+#fenton="`which python` `which fenton1985.py`"
+fenton='fenton1985.py'
+
 . $PBS_O_WORKDIR/$INPUTFILE
 
 i=1
@@ -21,11 +24,14 @@ echo "  Input target CFL = $cfl"
 echo "  Input domain halflength = $halfL"
 echo "  Input damping length = $dampL"
 echo "  Input domain extra length = $extL"
+echo "  Input domain width = $width"
 echo "  Input max inner iterations = $inner"
+echo "  Input gradient limiter = $gradlim"
+echo "  Input gradient order = $gradorder"
 
-L=`fenton1985.py $T $H lambda`
+L=`$fenton $T $H lambda`
 echo "  Calculated wave length = $L"
-U=`fenton1985.py $T $H $L umean`
+U=`$fenton $T $H $L umean`
 echo "  Calculated mean wave speed = $U"
 
 macroName=setupSim
@@ -46,6 +52,8 @@ sed -i "s/<<nH>>/$nH/" ${macroName}.java
 sed -i "s/<<ds0>>/$dsmax/" ${macroName}.java
 sed -i "s/<<cfl>>/$cfl/" ${macroName}.java
 sed -i "s/<<inner>>/$inner/" ${macroName}.java
+sed -i "s/<<gradlim>>/$gradlim/" ${macroName}.java
+sed -i "s/<<gradord>>/$gradorder/" ${macroName}.java
 
 mkdir $name
 mv -v ${macroName}.java $name/

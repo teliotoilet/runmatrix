@@ -222,53 +222,14 @@ class runmatrix:
             Ncases += n
         print 'Building database from',Ncases,'total cases'
 
-#        data = dict()
-#        for param in paramNames:
-#            if param=='name':
-#                data['name'] = [ '' for i in range(Ncases) ]
-#                continue
-#            try: default = paramDefaults[param]
-#            except KeyError: default = -1
-#            data[param] = default * np.ones((Ncases), dtype=paramTypes[param])
-#
-#        for output,typ in outputNames,outputTypes:
-#            data[output] = np.zeros((Ncases), dtype=typ)
-
         # read data
-#        icase = 0 # initial case offset
-#        casedata = dict()
+        postdata_min = dict()
+        postdata_max = dict()
         for casename in casenames:
 
             fnameIn = casename + '.txt'
             fnameOut = casename + os.sep + postdata
 
-#            print 'Reading case inputs from',fnameIn
-#            iin = -1
-#            with open(fnameIn,'r') as fin:
-#                for line in fin:
-#                    line = line.split()
-#                    iin += 1
-#                    for ival in range(len(paramNames)):
-#                        param = paramNames[ival]
-#                        typ = paramTypes[param]
-#                        try:
-#                            data[param][icase+iin] = typ(line[ival])
-#                        except IndexError: break
-#                    
-#            print 'Reading postprocessed data from',fnameOut
-#            iout = -1
-#            with open(fnameOut,'r') as fout:
-#                for line in fout:
-#                    line = line.split()
-#                    iout += 1
-#                    assert( line[0] == data['name'][icase+iout] )
-#                    maxerr[icase+iout] = float(line[1])
-#                    cumerr[icase+iout] = float(line[2])
-#                    lamerr[icase+iout] = float(line[3])
-#                    adjerr[icase+iout] = float(line[4])
-#                    ncells[icase+iout] = int(line[5])
-#                    walltime[icase+iout] = float(line[6])
-                    
             print 'Reading case inputs from',fnameIn
             print 'Reading postprocessed data from',fnameOut
             iread = -1
@@ -278,40 +239,33 @@ class runmatrix:
                     iread += 1
                     line1 = line1.split()
                     line2 = line2.split()
+                    if not line1[0]==line2[0]: print line1[0], line2[0]
                     assert( line1[0] == line2[0] ) # check for name match
 
 #                    casedata = dict() # clear the case data
                     casedata = paramDefaults.copy() # set to default
                     for val,par in zip(line1,paramNames):
                         casedata[par] = paramTypes[par](val)
+
                     for val,out in zip(line2[1:],outputNames):
-                        casedata[out] = outputTypes[out](val)
+                        val = outputTypes[out](val)
+                        try:
+                            if val < postdata_min[out]: postdata_min[out] = val
+                        except KeyError: postdata_min[out] = val
+                        try:
+                            if val > postdata_max[out]: postdata_max[out] = val
+                        except KeyError: postdata_max[out] = val
+                        casedata[out] = val
 
                     self.add_case( **casedata )
 
-            print 'paramDefaults at the end',paramDefaults
-
-#            assert(iin==iout)
-#            icase = iin + 1
-
-#        # fill database
-#        # TODO: move this to inside the read loop so we don't need extra memory
-#        for i in range(Ncases):
-#            casedata = { \
-#                'maxerr': maxerr[i], \
-#                'cumerr': cumerr[i], \
-#                'lamerr': lamerr[i], \
-#                'adjerr': adjerr[i], \
-#                'ncells': ncells[i], \
-#                'walltime': walltime[i] \
-#            }
-#            for param in paramNames:
-#                casedata[param] = data[param][i]
-
-            self.add_case( **casedata )
-
         print 'Parameter ranges:'
-        self.print_params('  ')# }}}
+        self.print_params('  ')
+
+        print 'Postprocessed data ranges:'
+        for out in outputNames:
+            print ' ',out,':',[postdata_min[out],postdata_max[out]]
+        # }}}
 
     # plotting routines # {{{
 
@@ -347,7 +301,7 @@ class runmatrix:
         # {{{
         if title: 
             print ''
-            print 'GENERATING NEW PLOT "%s"'%(title)
+            print 'GENERATING ERROR PLOT "%s"'%(title)
 
         if not savefigs: save='' # allow global override
         
@@ -495,6 +449,168 @@ class runmatrix:
             except KeyError: varname = xvar
         ax2.set_xlabel(varname)
         ax3.set_xlabel(varname)
+
+        # legend
+        if nseries > 1:
+            #lines, labels = ax0.get_legend_handles_labels()
+            #fig.legend(lines,labels,loc='lower center',ncol=nseries) #,bbox_to_anchor=(0.,-0.02,1.,0.1)
+            fig.legend(legendlines,legendlabels,loc='lower center',ncol=nseries)
+
+        # hardcopy
+        if save:
+            fig.savefig(save)
+            print 'Saved',save
+
+        # handle picks
+        fig.canvas.mpl_connect('pick_event', self.onpick)# }}}
+
+    def errorFftPlot(self,
+            ss,                                     # sea state, must be specified
+            title='',                               # sets fig.suptitle
+            xvar='nL', xvarname='', xscale='',      # param name | alternate name for axes title | 'linear'
+            constvar='', constval=0,                # constvar=['var1','var2',...], constval=[val1,(val2a,val2b,...),...]
+            seriesvar='', seriesrange=(-9e9,9e9),   # corresponds to different plot style and legend entries
+            timingcolor=False,                      # colors symbols based on log of walltime
+            save='',                                # filename to output
+            verbose=False):
+        # {{{
+        if title: 
+            print ''
+            print 'GENERATING FFT ERROR PLOT "%s"'%(title)
+
+        if not savefigs: save='' # allow global override
+        
+        # setup plot
+        fig, [ax0, ax1] = plt.subplots(nrows=1, ncols=2, sharex=True)
+        if seriesvar: 
+            fig.subplots_adjust(bottom=0.175,left=0.125,top=0.875,right=0.95)
+            series = self.params[seriesvar]
+            nseries = len(series)
+        else:
+            #fig.subplots_adjust(bottom=0.1,left=0.125,top=0.875,right=0.95)
+            fig.subplots_adjust(bottom=0.175,left=0.125,top=0.875,right=0.95)
+            nseries = 1
+        xmin = 9e9; xmax = -9e9
+
+        # select sea state and constant vars
+        cols = { 'T':ss['period'], 'H':ss['height'] }
+        if constvar: 
+            if isinstance(constvar, list): # multiple constant parameters specified
+                assert( len(constvar)==len(constval) )
+                for cvar,cval in zip(constvar,constval):
+                    if isinstance(cval, tuple):
+                        for cv in cval:
+                            assert( cv in self.params[cvar] )
+                    else:
+                        assert( cval in self.params[cvar] )
+                    cols[cvar] = cval
+            else:
+                assert( constval in self.params[constvar] )
+                cols[constvar] = constval
+
+        if nseries > 1:
+            #legendlabels = [ seriesvar+'='+str(series[i]) for i in range(nseries) ]
+            legendlabels = []
+            legendlines = []
+
+        # make plot
+        for i in range(nseries):
+
+            # filter data
+            if nseries > 1: 
+                if series[i] < seriesrange[0] or series[i] > seriesrange[1]: 
+                    if verbose: 
+                        print '- Skipping series',i,':',\
+                            seriesvar+'='+str(series[i]),\
+                            'out of range',seriesrange
+                    continue
+
+                try:
+                    legendlabels.append( paramLongNames[seriesvar] + '=' + str(series[i]) )
+                except KeyError:
+                    legendlabels.append( seriesvar + '=' + str(series[i]) )
+
+                if verbose: print ' - SERIES',i,':',legendlabels[-1]
+                cols[seriesvar] = series[i]
+                style = seriesStyles[i]
+            else:
+                if verbose: print ' - no series specified'
+                style = defaultStyle
+
+            #selected = self.select(**cols)
+            selected = self.select( **dict({'verbose':verbose},**cols) )
+            print '  series',i,':',len(selected),'cases selected',cols
+
+            # get or calculate x
+            if xvar in self.params:
+                xvals = self.column(xvar)
+            else:
+                formula = xvar
+                if verbose: print 'Original formula:',formula
+                for param in self.params:
+                    paramstr = '${'+param+'}'
+                    if paramstr in formula:
+                        formula = formula.replace(paramstr,'self.column(\''+param+'\')')
+                if '${L}' in formula: formula = formula.replace('${L}',str(ss['wavelength']))
+                if '${U}' in formula: formula = formula.replace('${U}',str(ss['wavespeed']))
+                if verbose: print 'Evaluated formula:',formula
+                xvals = eval(formula)
+            xmin = min(xmin,np.min(xvals))
+            xmax = max(xmax,np.max(xvals))
+
+            # get y
+            maxerr = self.column('maxerr')
+            ffterr = self.column('ffterr')
+
+            # make subplots
+            styleargs = { 'markersize':8, 'picker':5 }
+            names = self.column('name')
+            if timingcolor:
+                # plot each point separately
+                colorscale = np.log(self.column('walltime'))
+                colorscale -= np.min(colorscale)
+                colorscale /= np.max(colorscale)
+                for xi,err1,err2,c,name in \
+                        zip( xvals, maxerr, ffterr, colorscale, names ):
+                    styleargs['markerfacecolor'] = (c,0,0)
+                    styleargs['markeredgecolor'] = (c,0,0)
+                    styleargs['label'] = name
+                    ax0.loglog(   xi, err1, style, **styleargs )
+                    ax1.loglog(   xi, err2, style, **styleargs )
+            else:
+                for xi,err1,err2,name in \
+                        zip( xvals, maxerr, ffterr, names ):
+                    styleargs['label'] = name
+                    ax0.loglog(   xi, err1, style, **styleargs )
+                    ax1.loglog(   xi, err2, style, **styleargs )
+            if xscale:
+                ax0.set_xscale(xscale)
+                ax1.set_xscale(xscale)
+
+            if nseries > 1:
+                legendlines.append( ax0.get_lines()[-1] )
+
+        # end of loop over series
+
+        # set axes limits
+        if xscale=='linear':
+            xr = xmax-xmin
+            ax0.set_xlim( (xmin-0.2*xr, xmax+0.2*xr) ) # note sharex=True
+        else:
+            ax0.set_xlim( calcLogRange([xmin,xmax]) )
+        if 'maxerr_range' in ss.keys():
+            ax0.set_ylim( ss['maxerr_range'] )
+
+        # axes titles
+        fig.suptitle(title,fontsize=18)
+        ax0.set_title('Maximum Error'); ax0.set_ylabel('maximum L2-error norm')
+        ax1.set_title('Integrated Wavenumber Error'); ax1.set_ylabel('high-frequency content')
+        if xvarname: varname = xvarname
+        else:
+            try: varname = paramLongNames[xvar]
+            except KeyError: varname = xvar
+        ax0.set_xlabel(varname)
+        ax1.set_xlabel(varname)
 
         # legend
         if nseries > 1:

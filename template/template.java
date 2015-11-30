@@ -10,6 +10,8 @@ import star.meshing.*;
 
 import star.vis.*;
 
+import star.metrics.*; // for getLimiterMethodOption()
+
 public class setupSim extends StarMacro {
 
   double H = <<H>>;	        // wave height
@@ -26,6 +28,8 @@ public class setupSim extends StarMacro {
   double cfl = <<cfl>>;     // target CFL number
   double ds0 = <<ds0>>;     // max cell size
   int nInner = <<inner>>;   // max inner iterations
+  double gradOrder = <<gradord>>; // order of gradient reconstruction scheme [1.0,2.0]
+  String gradLimiter = "<<gradlim>>"; // gradient limiter [vk|vk2|mm] (venkat, modified venkat, min-mod)
   String workingDir = "<<curDir>>";
 
   public void execute() {
@@ -83,6 +87,8 @@ public class setupSim extends StarMacro {
 
     CadModel mycad = ((CadModel) mysim.get(SolidModelManager.class).getObject("Tank CAD"));
 
+    //--update sketch
+
     UserDesignParameter userDesignParameter_1 = ((UserDesignParameter) mycad.getDesignParameterManager().getObject("halfLength"));
     userDesignParameter_1.getQuantity().setValue(halfLength);
 
@@ -91,6 +97,58 @@ public class setupSim extends StarMacro {
 
     UserDesignParameter userDesignParameter_3 = ((UserDesignParameter) mycad.getDesignParameterManager().getObject("extendLength"));
     userDesignParameter_3.getQuantity().setValue(extLength);
+
+    mycad.update();
+
+    //--re-extrude
+
+    ExtrusionMerge extrudeY = ((ExtrusionMerge) mycad.getFeatureManager().getObject("Extrude 1"));
+
+    mycad.getFeatureManager().rollBack(extrudeY);
+
+    extrudeY.setDirectionOption(1);
+
+    extrudeY.setExtrudedBodyTypeOption(0);
+
+    extrudeY.getDistance().setValue(width);
+
+    extrudeY.setDistanceOption(0);
+
+    extrudeY.setCoordinateSystemOption(0);
+
+    extrudeY.setDraftOption(0);
+
+    LabCoordinateSystem labCoords = mysim.getCoordinateSystemManager().getLabCoordinateSystem();
+    extrudeY.setCoordinateSystem(labCoords);
+
+    CadModelCoordinate cadCoords = extrudeY.getDirectionAxis();
+    cadCoords.setCoordinateSystem(labCoords);
+    cadCoords.setCoordinate(meters, meters, meters, new DoubleVector(new double[] {0.0, 0.0, 1.0}));
+
+    extrudeY.setFace(null);
+
+    extrudeY.setBody(null);
+
+    Sketch mysketch = ((Sketch) mycad.getFeatureManager().getObject("Sketch 1"));
+
+    extrudeY.setSketch(mysketch);
+
+    extrudeY.setSketch(mysketch);
+
+    extrudeY.setPostOption(1);
+
+    extrudeY.setExtrusionOption(0);
+
+    BodyNameRefManager bodyNameRefManager_0 = extrudeY.getInteractionBodies();
+    bodyNameRefManager_0.setBodies(new NeoObjectVector(new Object[] {}));
+
+    extrudeY.setInteractingSelectedBodies(false);
+
+    extrudeY.markFeatureForEdit();
+
+    mycad.getFeatureManager().markDependentNotUptodate(extrudeY);
+
+    mycad.getFeatureManager().rollForwardToEnd();
 
     mycad.update();
 
@@ -232,7 +290,6 @@ public class setupSim extends StarMacro {
     // note: the waterSurface MUST exist, otherwise macro quits!!!
     alphaTable.extract();
     alphaTable.export(resolvePath(workingDir+"/waterSurface/XYZ_Internal_Table_table_0.csv"), ",");   
-
     // 
     // update solver settings
     //
@@ -240,6 +297,25 @@ public class setupSim extends StarMacro {
               ((InnerIterationStoppingCriterion) mysim.getSolverStoppingCriterionManager().getSolverStoppingCriterion("Maximum Inner Iterations"));
 
     innerIters.setMaximumNumberInnerIterations(nInner);
+
+    PhysicsContinuum physicsContinuum_0 = ((PhysicsContinuum) mysim.getContinuumManager().getContinuum("Physics 1"));
+    GradientsModel gradients = physicsContinuum_0.getModelManager().getModel(GradientsModel.class);
+
+    gradients.setCustomAccuracyLevelSelector(gradOrder);
+
+    switch(gradLimiter) {
+        case "vk":
+            gradients.getLimiterMethodOption().setSelected(LimiterMethodOption.VENKAT);
+            break;
+        case "vk2":
+            gradients.getLimiterMethodOption().setSelected(LimiterMethodOption.MODIF_VENKAT);
+            break;
+        case "mm":
+            gradients.getLimiterMethodOption().setSelected(LimiterMethodOption.MINMOD);
+            break;
+        default:
+            gradients.getLimiterMethodOption().setSelected(LimiterMethodOption.VENKAT);
+    }
 
     // 
     // save and start running
