@@ -482,6 +482,7 @@ class runmatrix:
         
         # setup plot
         fig, [ax0, ax1] = plt.subplots(nrows=1, ncols=2, sharex=True)
+        fig.set_figheight(5.0) # default is 6
         if seriesvar: 
             fig.subplots_adjust(bottom=0.175,left=0.125,top=0.875,right=0.95)
             series = self.params[seriesvar]
