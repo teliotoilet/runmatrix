@@ -29,9 +29,9 @@ echo "  Input max inner iterations = $inner"
 echo "  Input gradient limiter = $gradlim"
 echo "  Input gradient order = $gradorder"
 
-L=`$fenton $T $H lambda`
+L=`$fenton --depth $d $T $H --output lam`
 echo "  Calculated wave length = $L"
-U=`$fenton $T $H $L umean`
+U=`$fenton --depth $d $T $H $L --output u`
 echo "  Calculated mean wave speed = $U"
 
 macroName=setupSim

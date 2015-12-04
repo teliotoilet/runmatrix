@@ -3,7 +3,8 @@ set -e
 postcmd='post_wave_fft.py' # this should be from the fifthOrderWave git repo
 postoutput='post_fft.out'
 #outputtimes='0 5 10' # number of wave periods at which to perform fft
-outputtimes=`seq 0 10`
+#outputtimes=`seq 0 10`
+outputtimes=`seq 0 0.5 10`
 outfile='post_fft_summary.dat'
 
 if [ -n "$1" ]; then
